@@ -1,1 +1,0 @@
-# blender-point-cloud-io
