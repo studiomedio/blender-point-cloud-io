@@ -6,7 +6,7 @@ A Blender 5.0+ extension for importing and exporting point cloud files. Built ar
 
 | Format | Import | Export |
 |--------|:------:|:------:|
-| E57 (`.e57`) | ✅ | — |
+| E57 (`.e57`) | ✅ | ✅ (no normals) |
 
 Other formats (LAS/LAZ, PCD, XYZ, PLY) are planned.
 
@@ -46,6 +46,26 @@ Options in the sidebar:
 
 To see colors in the viewport, switch to **Material Preview** or **Rendered** shading.
 
+### Exporting E57
+
+`File > Export > E57 Point Cloud (.e57)`
+
+Each selected PointCloud object becomes one scan in the output file.
+
+Options:
+
+- **Colors** — write the `color` attribute as RGB uint8 (0–255).
+- **Intensity** — write the `intensity` attribute as a float field.
+- **Apply Modifiers** — evaluate the depsgraph first so Geometry Nodes-driven clouds are captured at their final state.
+- **Apply Transforms** — bake object Location/Rotation/Scale into the exported coordinates.
+- **Selection Only** — when off, every PointCloud in the scene is exported.
+
+**Note:** normals are not written. `pye57`'s writer (which wraps libE57Format) only exposes cartesian / spherical / intensity / color / index fields. Normals are an extension field and would require bypassing `write_scan_raw`.
+
+### Sidebar panel
+
+After importing, press **N** in the 3D Viewport → **Point Cloud** tab. The panel shows point count and present attributes, plus a radius control with a logarithmic slider and `÷10 / ÷2 / Auto / ×2 / ×10` buttons for quick magnitude changes.
+
 ## Project layout
 
 ```
@@ -53,11 +73,15 @@ point_cloud_io/
 ├── __init__.py              # extension entry point
 ├── blender_manifest.toml    # Blender extension manifest
 ├── operators/
-│   ├── __init__.py          # operator registration
-│   └── import_e57.py        # File > Import > E57 operator
+│   ├── __init__.py          # operator registration + menu wiring
+│   ├── import_e57.py        # File > Import > E57 operator
+│   └── export_e57.py        # File > Export > E57 operator
 ├── formats/
 │   ├── __init__.py
-│   └── e57.py               # E57 reading + PointCloud creation
+│   └── e57.py               # E57 read + write logic
+├── ui/
+│   ├── __init__.py
+│   └── panel.py             # 3D Viewport sidebar (N-panel)
 └── wheels/                  # bundled cp313 wheels (pye57, pyquaternion)
 ```
 

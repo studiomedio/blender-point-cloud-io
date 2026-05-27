@@ -208,3 +208,87 @@ def import_e57_file(
         created.append(pc)
 
     return created
+
+
+def _get_positions(obj, count, apply_transforms):
+    arr = np.empty(count * 3, dtype=np.float32)
+    obj.data.attributes['position'].data.foreach_get('vector', arr)
+    positions = arr.reshape(-1, 3).astype(np.float64)
+    if apply_transforms:
+        matrix = np.array(obj.matrix_world)
+        rotation = matrix[:3, :3]
+        translation = matrix[:3, 3]
+        positions = positions @ rotation.T + translation
+    return positions
+
+
+def _get_colors_uint8(obj, count):
+    if 'color' not in obj.data.attributes:
+        return None
+    arr = np.empty(count * 4, dtype=np.float32)
+    obj.data.attributes['color'].data.foreach_get('color', arr)
+    colors = arr.reshape(-1, 4)
+    return np.clip(colors[:, :3] * 255.0, 0.0, 255.0).astype(np.uint8)
+
+
+def _get_intensity(obj, count):
+    if 'intensity' not in obj.data.attributes:
+        return None
+    arr = np.empty(count, dtype=np.float32)
+    obj.data.attributes['intensity'].data.foreach_get('value', arr)
+    return arr
+
+
+def export_e57_file(
+    objects,
+    filepath,
+    *,
+    export_colors,
+    export_intensity,
+    apply_transforms,
+):
+    """Write a list of PointCloud objects as scans in an E57 file.
+
+    Returns the total number of points written. Each PointCloud becomes one
+    E57 scan. pye57's writer does not expose a normals field, so normals are
+    not exported.
+    """
+    import pye57
+
+    if not objects:
+        raise RuntimeError("No PointCloud objects to export.")
+
+    writer = pye57.E57(filepath, mode='w')
+    total_points = 0
+
+    for obj in objects:
+        attrs = obj.data.attributes
+        if 'position' not in attrs:
+            continue
+        count = len(attrs['position'].data)
+        if count == 0:
+            continue
+
+        positions = _get_positions(obj, count, apply_transforms)
+        data = {
+            'cartesianX': np.ascontiguousarray(positions[:, 0]),
+            'cartesianY': np.ascontiguousarray(positions[:, 1]),
+            'cartesianZ': np.ascontiguousarray(positions[:, 2]),
+        }
+
+        if export_colors:
+            colors = _get_colors_uint8(obj, count)
+            if colors is not None:
+                data['colorRed'] = np.ascontiguousarray(colors[:, 0])
+                data['colorGreen'] = np.ascontiguousarray(colors[:, 1])
+                data['colorBlue'] = np.ascontiguousarray(colors[:, 2])
+
+        if export_intensity:
+            intensity = _get_intensity(obj, count)
+            if intensity is not None:
+                data['intensity'] = intensity
+
+        writer.write_scan_raw(data, name=obj.name)
+        total_points += count
+
+    return total_points
