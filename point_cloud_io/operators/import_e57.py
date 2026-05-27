@@ -80,6 +80,9 @@ class IMPORT_OT_e57(bpy.types.Operator, ImportHelper):
             self.report({'ERROR'}, f"E57 import failed: {err}")
             return {'CANCELLED'}
 
+        for obj in objects:
+            obj.data.uniform_radius = self.point_radius
+
         total_points = sum(len(obj.data.attributes['position'].data) for obj in objects)
         self.report(
             {'INFO'},
