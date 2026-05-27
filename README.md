@@ -2,6 +2,8 @@
 
 A Blender 5.0+ extension for importing and exporting point cloud files. Built around Blender's native **PointCloud** object type.
 
+![Stanford bunny imported from E57](docs/images/imported-bunny.jpg)
+
 ## Supported formats
 
 | Format | Import | Export |
@@ -43,6 +45,8 @@ The required Python wheels (`pye57`, `pyquaternion`) are bundled with the extens
 
 `File > Import > E57 Point Cloud (.e57)`
 
+![Import dialog options](docs/images/import-dialog.png)
+
 Options in the sidebar:
 
 - **Colors** — extract RGB and write a `color` point attribute.
@@ -73,6 +77,8 @@ Options:
 ### Sidebar panel
 
 After importing, press **N** in the 3D Viewport → **Point Cloud** tab. The panel shows point count and present attributes, plus a radius control with a logarithmic slider and `÷10 / ÷2 / Auto / ×2 / ×10` buttons for quick magnitude changes.
+
+![Sidebar panel with point count and radius controls](docs/images/sidebar-panel.png)
 
 ## Project layout
 

@@ -1,5 +1,7 @@
 Import and export ASTM E57 point cloud files directly into Blender's native **PointCloud** object — with colors, normals, intensity, and a sidebar panel for live radius control.
 
+![Stanford bunny imported from E57](images/imported-bunny.jpg)
+
 ## Features
 
 - **Native PointCloud objects** — uses Blender's optimised point cloud geometry, not a mesh fallback.
@@ -15,6 +17,8 @@ Import and export ASTM E57 point cloud files directly into Blender's native **Po
 ### Import
 
 `File > Import > E57 Point Cloud (.e57)`
+
+![Import dialog](images/import-dialog.png)
 
 Options in the file dialog:
 
@@ -32,6 +36,8 @@ Each selected PointCloud object becomes one scan in the output file. Options for
 ### Sidebar panel
 
 Press **N** in the 3D Viewport → **Point Cloud** tab. Live radius adjustment works on any selected PointCloud, including ones created by Geometry Nodes or other add-ons.
+
+![Sidebar panel](images/sidebar-panel.png)
 
 ## Limitations
 
