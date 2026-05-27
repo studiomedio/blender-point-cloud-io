@@ -3,6 +3,20 @@
 All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **PLY import** via `File > Import > PLY Point Cloud (.ply)`.
+  - Reads positions, colors (auto-detects 0–255 vs 0–1 ranges), normals, and any other per-vertex scalar properties as point attributes.
+  - ASCII and binary little-endian / big-endian formats supported.
+  - Pure-Python + numpy parser — no additional bundled wheels.
+- **PLY export** via `File > Export > PLY Point Cloud (.ply)`.
+  - Writes positions, normals, colors (as RGB uint8), and `FLOAT` / `INT` / `BOOLEAN` POINT-domain attributes.
+  - ASCII and binary little-endian output.
+  - Concatenates multiple selected PointCloud objects into a single PLY file.
+- Internal `formats/_common.py` module factoring out shared PointCloud build / read helpers used by both E57 and PLY paths.
+
 ## [0.1.0] – 2026-05-27
 
 Initial release.

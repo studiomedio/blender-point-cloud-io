@@ -3,38 +3,14 @@ import os
 import bpy
 import numpy as np
 
-
-def _create_point_cloud_material(name, has_color, has_normal):
-    material = bpy.data.materials.new(name=name)
-    material.use_nodes = True
-    nodes = material.node_tree.nodes
-    links = material.node_tree.links
-    nodes.clear()
-
-    bsdf = nodes.new('ShaderNodeBsdfPrincipled')
-    bsdf.location = (0, 0)
-    output = nodes.new('ShaderNodeOutputMaterial')
-    output.location = (300, 0)
-    links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
-
-    if has_color:
-        attr = nodes.new('ShaderNodeAttribute')
-        attr.attribute_name = "color"
-        attr.location = (-300, 100)
-        links.new(attr.outputs['Color'], bsdf.inputs['Base Color'])
-    elif has_normal:
-        attr = nodes.new('ShaderNodeAttribute')
-        attr.attribute_name = "normal"
-        attr.location = (-600, -100)
-        remap = nodes.new('ShaderNodeVectorMath')
-        remap.operation = 'MULTIPLY_ADD'
-        remap.inputs[1].default_value = (0.5, 0.5, 0.5)
-        remap.inputs[2].default_value = (0.5, 0.5, 0.5)
-        remap.location = (-300, -100)
-        links.new(attr.outputs['Vector'], remap.inputs[0])
-        links.new(remap.outputs['Vector'], bsdf.inputs['Base Color'])
-
-    return material
+from ._common import (
+    attach_material,
+    build_point_cloud,
+    get_colors_uint8,
+    get_positions,
+    get_scalar,
+    reset_selection,
+)
 
 
 def _read_scan(e57_file, scan_index, options):
@@ -48,10 +24,7 @@ def _read_scan(e57_file, scan_index, options):
         return None
 
     invalid = data.get('cartesianInvalidState')
-    if invalid is not None:
-        mask = np.asarray(invalid) == 0
-    else:
-        mask = None
+    mask = np.asarray(invalid) == 0 if invalid is not None else None
 
     def _take(arr):
         a = np.asarray(arr)
@@ -102,54 +75,6 @@ def _read_scan(e57_file, scan_index, options):
     return points, extras
 
 
-def _build_point_cloud(context, name, points, extras, point_radius):
-    # Blender's Python API doesn't expose direct point allocation on PointCloud,
-    # so we populate a mesh then convert — the same approach used by the
-    # official PointCloud workflows.
-    mesh = bpy.data.meshes.new(name=f"{name}_mesh")
-    mesh.vertices.add(len(points))
-    mesh.vertices.foreach_set("co", points.ravel())
-    mesh.update()
-
-    obj = bpy.data.objects.new(name=name, object_data=mesh)
-    context.collection.objects.link(obj)
-    obj.select_set(True)
-    context.view_layer.objects.active = obj
-    bpy.ops.object.convert(target='POINTCLOUD')
-    pc = context.active_object
-
-    attrs = pc.data.attributes
-
-    if 'color' in extras:
-        a = attrs.new(name="color", type='FLOAT_COLOR', domain='POINT')
-        a.data.foreach_set("color", extras['color'].ravel())
-
-    if 'normal' in extras:
-        a = attrs.new(name="normal", type='FLOAT_VECTOR', domain='POINT')
-        a.data.foreach_set("vector", extras['normal'].ravel())
-
-    if 'intensity' in extras:
-        a = attrs.new(name="intensity", type='FLOAT', domain='POINT')
-        a.data.foreach_set("value", extras['intensity'])
-
-    radius_attr = attrs.new(name="radius", type='FLOAT', domain='POINT')
-    radius_attr.data.foreach_set(
-        "value", np.full(len(points), point_radius, dtype=np.float32)
-    )
-
-    pc.select_set(False)
-    return pc
-
-
-def _attach_material(pc, name, extras):
-    has_color = 'color' in extras
-    has_normal = 'normal' in extras
-    if not (has_color or has_normal):
-        return
-    material = _create_point_cloud_material(name, has_color, has_normal)
-    pc.data.materials.append(material)
-
-
 def import_e57_file(
     context,
     filepath,
@@ -171,10 +96,7 @@ def import_e57_file(
         'scale': scale_factor,
     }
 
-    if context.active_object and context.active_object.mode != 'OBJECT':
-        bpy.ops.object.mode_set(mode='OBJECT')
-    if bpy.ops.object.select_all.poll():
-        bpy.ops.object.select_all(action='DESELECT')
+    reset_selection(context)
 
     e57_file = pye57.E57(filepath)
     base_name = os.path.splitext(os.path.basename(filepath))[0]
@@ -196,47 +118,18 @@ def import_e57_file(
         merged_extras = {
             k: np.concatenate([s[1][k] for s in scans]) for k in common_keys
         }
-        pc = _build_point_cloud(context, base_name, all_points, merged_extras, point_radius)
-        _attach_material(pc, f"Mat_{base_name}", merged_extras)
+        pc = build_point_cloud(context, base_name, all_points, merged_extras, point_radius)
+        attach_material(pc, f"Mat_{base_name}", merged_extras)
         return [pc]
 
     created = []
     for index, (points, extras) in enumerate(scans):
         name = base_name if len(scans) == 1 else f"{base_name}_scan_{index}"
-        pc = _build_point_cloud(context, name, points, extras, point_radius)
-        _attach_material(pc, f"Mat_{name}", extras)
+        pc = build_point_cloud(context, name, points, extras, point_radius)
+        attach_material(pc, f"Mat_{name}", extras)
         created.append(pc)
 
     return created
-
-
-def _get_positions(obj, count, apply_transforms):
-    arr = np.empty(count * 3, dtype=np.float32)
-    obj.data.attributes['position'].data.foreach_get('vector', arr)
-    positions = arr.reshape(-1, 3).astype(np.float64)
-    if apply_transforms:
-        matrix = np.array(obj.matrix_world)
-        rotation = matrix[:3, :3]
-        translation = matrix[:3, 3]
-        positions = positions @ rotation.T + translation
-    return positions
-
-
-def _get_colors_uint8(obj, count):
-    if 'color' not in obj.data.attributes:
-        return None
-    arr = np.empty(count * 4, dtype=np.float32)
-    obj.data.attributes['color'].data.foreach_get('color', arr)
-    colors = arr.reshape(-1, 4)
-    return np.clip(colors[:, :3] * 255.0, 0.0, 255.0).astype(np.uint8)
-
-
-def _get_intensity(obj, count):
-    if 'intensity' not in obj.data.attributes:
-        return None
-    arr = np.empty(count, dtype=np.float32)
-    obj.data.attributes['intensity'].data.foreach_get('value', arr)
-    return arr
 
 
 def export_e57_file(
@@ -269,7 +162,7 @@ def export_e57_file(
         if count == 0:
             continue
 
-        positions = _get_positions(obj, count, apply_transforms)
+        positions = get_positions(obj, count, apply_transforms)
         data = {
             'cartesianX': np.ascontiguousarray(positions[:, 0]),
             'cartesianY': np.ascontiguousarray(positions[:, 1]),
@@ -277,14 +170,14 @@ def export_e57_file(
         }
 
         if export_colors:
-            colors = _get_colors_uint8(obj, count)
+            colors = get_colors_uint8(obj, count)
             if colors is not None:
                 data['colorRed'] = np.ascontiguousarray(colors[:, 0])
                 data['colorGreen'] = np.ascontiguousarray(colors[:, 1])
                 data['colorBlue'] = np.ascontiguousarray(colors[:, 2])
 
         if export_intensity:
-            intensity = _get_intensity(obj, count)
+            intensity = get_scalar(obj, count, 'intensity')
             if intensity is not None:
                 data['intensity'] = intensity
 

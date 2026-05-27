@@ -9,8 +9,9 @@ A Blender 5.0+ extension for importing and exporting point cloud files. Built ar
 | Format | Import | Export |
 |--------|:------:|:------:|
 | E57 (`.e57`) | ✅ | ✅ (no normals) |
+| PLY (`.ply`) | ✅ | ✅ (ASCII or binary) |
 
-Other formats (LAS/LAZ, PCD, XYZ, PLY) are planned.
+Other formats (LAS/LAZ, PCD, XYZ) are planned.
 
 ## About E57
 
@@ -74,6 +75,20 @@ Options:
 
 **Note:** normals are not written. `pye57`'s writer (which wraps libE57Format) only exposes cartesian / spherical / intensity / color / index fields. Normals are an extension field and would require bypassing `write_scan_raw`.
 
+### Importing PLY
+
+`File > Import > PLY Point Cloud (.ply)`
+
+Reads positions (`x y z`), colors (`red green blue [alpha]`, auto-detects 0–255 vs 0–1 ranges), normals (`nx ny nz`), and any other per-vertex scalar properties as point attributes. ASCII and binary little-endian / big-endian variants are supported. The reader is pure Python + numpy — no extra wheel dependencies.
+
+> Note: this entry is distinct from Blender's built-in `File > Import > Stanford PLY (.ply)`, which produces a **mesh**. The Point Cloud I/O entry produces a **PointCloud** object — much faster for million-point datasets and easier to drive with Geometry Nodes.
+
+### Exporting PLY
+
+`File > Export > PLY Point Cloud (.ply)`
+
+Writes positions, normals, colors (as RGB uint8), and any extra `FLOAT` / `INT` / `BOOLEAN` POINT-domain attributes. Binary little-endian by default; tick **ASCII** for a human-readable file.
+
 ### Sidebar panel
 
 After importing, press **N** in the 3D Viewport → **Point Cloud** tab. The panel shows point count and present attributes, plus a radius control with a logarithmic slider and `÷10 / ÷2 / Auto / ×2 / ×10` buttons for quick magnitude changes.
@@ -89,10 +104,14 @@ point_cloud_io/
 ├── operators/
 │   ├── __init__.py          # operator registration + menu wiring
 │   ├── import_e57.py        # File > Import > E57 operator
-│   └── export_e57.py        # File > Export > E57 operator
+│   ├── export_e57.py        # File > Export > E57 operator
+│   ├── import_ply.py        # File > Import > PLY operator
+│   └── export_ply.py        # File > Export > PLY operator
 ├── formats/
 │   ├── __init__.py
-│   └── e57.py               # E57 read + write logic
+│   ├── _common.py           # shared PointCloud build / read helpers
+│   ├── e57.py               # E57 read + write logic
+│   └── ply.py               # PLY read + write logic
 ├── ui/
 │   ├── __init__.py
 │   └── panel.py             # 3D Viewport sidebar (N-panel)
