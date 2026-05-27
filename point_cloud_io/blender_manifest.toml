@@ -1,0 +1,23 @@
+schema_version = "1.0.0"
+
+id = "point_cloud_io"
+version = "0.1.0"
+name = "Point Cloud I/O"
+tagline = "Import and export point cloud files (E57)"
+maintainer = "Sławomir Sobczak, Studio Medio <studiomedio.com@gmail.com>"
+type = "add-on"
+
+blender_version_min = "5.0.0"
+
+license = ["SPDX:GPL-3.0-or-later"]
+tags = ["Import-Export"]
+
+wheels = [
+    "./wheels/pyquaternion-0.9.9-py3-none-any.whl",
+    "./wheels/pye57-0.4.16-cp312-cp312-macosx_11_0_arm64.whl",
+    "./wheels/pye57-0.4.16-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+    "./wheels/pye57-0.4.16-cp312-cp312-win_amd64.whl",
+]
+
+[permissions]
+files = "Read point cloud files from disk"
