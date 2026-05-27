@@ -12,7 +12,7 @@ Other formats (LAS/LAZ, PCD, XYZ, PLY) are planned.
 
 ## Requirements
 
-- **Blender 5.0** or newer (Python 3.12)
+- **Blender 5.0** or newer (Python 3.13)
 
 The required Python wheels (`pye57`, `pyquaternion`) are bundled with the extension — no internet needed at install time.
 
@@ -58,7 +58,7 @@ point_cloud_io/
 ├── formats/
 │   ├── __init__.py
 │   └── e57.py               # E57 reading + PointCloud creation
-└── wheels/                  # bundled cp312 wheels (pye57, pyquaternion)
+└── wheels/                  # bundled cp313 wheels (pye57, pyquaternion)
 ```
 
 Adding a new format means dropping `formats/<format>.py` and a matching `operators/import_<format>.py` (or `export_<format>.py`) and wiring it up in `operators/__init__.py`.

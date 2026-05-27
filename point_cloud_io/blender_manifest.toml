@@ -14,9 +14,9 @@ tags = ["Import-Export"]
 
 wheels = [
     "./wheels/pyquaternion-0.9.9-py3-none-any.whl",
-    "./wheels/pye57-0.4.16-cp312-cp312-macosx_11_0_arm64.whl",
-    "./wheels/pye57-0.4.16-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
-    "./wheels/pye57-0.4.16-cp312-cp312-win_amd64.whl",
+    "./wheels/pye57-0.4.19-cp313-cp313-macosx_11_0_arm64.whl",
+    "./wheels/pye57-0.4.19-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+    "./wheels/pye57-0.4.19-cp313-cp313-win_amd64.whl",
 ]
 
 [permissions]
