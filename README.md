@@ -10,6 +10,14 @@ A Blender 5.0+ extension for importing and exporting point cloud files. Built ar
 
 Other formats (LAS/LAZ, PCD, XYZ, PLY) are planned.
 
+## About E57
+
+ASTM E57 is a compact, vendor-neutral container for point clouds, images, and metadata produced by 3D imaging systems — LiDAR, terrestrial laser scanners, structured-light rigs. A single `.e57` file can carry multiple scans, each with its own pose, color, intensity, and (via extensions) normals.
+
+- [libe57.org](http://www.libe57.org/) — official format home and specification
+- [Sample E57 files](http://www.libe57.org/data.html) — public test datasets (Stanford bunny, scan stations, etc.)
+- [Coordinate system conventions](http://www.libe57.org/bestCoordinates.html) — how scanners encode pose and orientation; useful when imported clouds appear flipped or rotated
+
 ## Requirements
 
 - **Blender 5.0** or newer (Python 3.13)

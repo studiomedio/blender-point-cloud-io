@@ -3,13 +3,15 @@ schema_version = "1.0.0"
 id = "point_cloud_io"
 version = "0.1.0"
 name = "Point Cloud I/O"
-tagline = "Import and export point cloud files (E57)"
+tagline = "Import and export E57 point cloud files"
 maintainer = "Sławomir Sobczak, Studio Medio <studiomedio.com@gmail.com>"
 type = "add-on"
 
 blender_version_min = "5.0.0"
 
 license = ["SPDX:GPL-3.0-or-later"]
+copyright = ["2026 Sławomir Sobczak", "2026 Studio Medio"]
+website = "https://github.com/studiomedio/blender-point-cloud-io"
 tags = ["Import-Export"]
 
 wheels = [
@@ -20,4 +22,4 @@ wheels = [
 ]
 
 [permissions]
-files = "Read point cloud files from disk"
+files = "Read and write point cloud files on disk"
