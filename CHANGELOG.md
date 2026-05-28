@@ -3,6 +3,26 @@
 All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] – 2026-05-28
+
+### Added
+
+- **PCD import** via `File > Import > PCD Point Cloud (.pcd)`.
+  - Reads positions, packed RGB / RGBA (PCL float-packed convention), normals (`normal_x/y/z`), intensity, and other per-point scalar fields as point attributes.
+  - Supports `ascii` and `binary` DATA modes. `binary_compressed` (LZF) raises a clear "convert first" error rather than failing silently.
+- **PCD export** via `File > Export > PCD Point Cloud (.pcd)`.
+  - Writes a single unordered cloud (`HEIGHT = 1`) with `x y z` + optional `normal_x/y/z`, packed `rgb`, and `intensity`.
+  - Binary by default; ASCII tickbox for debugging.
+- **XYZ import** via `File > Import > XYZ Point Cloud (.xyz, .txt, .csv)`.
+  - Plain text with no header; column layout inferred from column count (3 / 4 / 6 / 7 / 9 columns recognised; anything else becomes opaque `extra_*` FLOAT attributes).
+  - Auto-detects comma vs whitespace separator; skips `#`-prefixed comment lines.
+- **XYZ export** via `File > Export > XYZ Point Cloud (.xyz)`.
+  - ASCII output. Independent tickboxes for intensity, RGB, and normals.
+
+### Bundled wheels
+
+- No new wheels — both PCD and XYZ readers/writers are pure-Python + numpy.
+
 ## [0.3.0] – 2026-05-28
 
 ### Added

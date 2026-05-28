@@ -11,8 +11,8 @@ A Blender 5.0+ extension for importing and exporting point cloud files. Built ar
 | E57 (`.e57`) | ✅ | ✅ (no normals) |
 | PLY (`.ply`) | ✅ | ✅ (ASCII or binary) |
 | LAS / LAZ (`.las`, `.laz`) | ✅ | ✅ |
-
-Other formats (PCD, XYZ) are planned.
+| PCD (`.pcd`) | ✅ (ASCII / binary) | ✅ (ASCII or binary) |
+| XYZ (`.xyz`, `.txt`, `.csv`) | ✅ | ✅ |
 
 ## About E57
 
@@ -124,6 +124,41 @@ Writes Point Data Record Format 3 (LAS 1.2) — broadly compatible, includes RGB
 
 Positions are quantized to millimeter precision (`scale=0.001`), with the offset set to the data minimum so the int32 storage stays in range. Color is upscaled from Blender's 8-bit to LAS's 16-bit channels.
 
+### Importing PCD
+
+`File > Import > PCD Point Cloud (.pcd)`
+
+Reads positions (`x y z`), normals (`normal_x/y/z`), packed RGB / RGBA, intensity, and any other per-point scalar fields as point attributes. Supports `ascii` and `binary` PCD; **`binary_compressed` (LZF) is not supported** — convert with `pcl_convert_pcd_ascii_binary` or CloudCompare first.
+
+### Exporting PCD
+
+`File > Export > PCD Point Cloud (.pcd)`
+
+Writes a single unordered cloud (`HEIGHT = 1`). Columns are `x y z` + optionally `normal_x/y/z`, packed `rgb`, and `intensity`. Binary by default; tick **ASCII** for a human-readable file. Multiple selected PointCloud objects are concatenated into one PCD.
+
+### Importing XYZ
+
+`File > Import > XYZ Point Cloud (.xyz, .txt, .csv)`
+
+Plain-text format with no header — column layout is inferred:
+
+| Columns | Interpretation |
+|---:|---|
+| 3 | `x y z` |
+| 4 | `x y z intensity` |
+| 6 | `x y z r g b` (auto-detects 0–1 vs 0–255) |
+| 7 | `x y z intensity r g b` |
+| 9 | `x y z r g b nx ny nz` |
+| other | first 3 are positions, remaining columns become `extra_0`, `extra_1`, … FLOAT attributes |
+
+Comma-separated values are auto-detected from the first data line; `#`-prefixed comment lines are skipped.
+
+### Exporting XYZ
+
+`File > Export > XYZ Point Cloud (.xyz)`
+
+Always ASCII. Column order: `x y z [intensity] [r g b] [nx ny nz]`. Tick the **Write Colors / Normals / Intensity** options to include each section; columns are only emitted when the underlying attribute exists on every exported object.
+
 ### Sidebar panel
 
 After importing, press **N** in the 3D Viewport → **Point Cloud** tab. The panel shows point count and present attributes, plus a radius control with a logarithmic slider and `÷10 / ÷2 / Auto / ×2 / ×10` buttons for quick magnitude changes.
@@ -143,13 +178,19 @@ point_cloud_io/
 │   ├── import_ply.py        # File > Import > PLY operator
 │   ├── export_ply.py        # File > Export > PLY operator
 │   ├── import_las.py        # File > Import > LAS/LAZ operator
-│   └── export_las.py        # File > Export > LAS/LAZ operator
+│   ├── export_las.py        # File > Export > LAS/LAZ operator
+│   ├── import_pcd.py        # File > Import > PCD operator
+│   ├── export_pcd.py        # File > Export > PCD operator
+│   ├── import_xyz.py        # File > Import > XYZ operator
+│   └── export_xyz.py        # File > Export > XYZ operator
 ├── formats/
 │   ├── __init__.py
 │   ├── _common.py           # shared PointCloud build / read helpers
 │   ├── e57.py               # E57 read + write logic
 │   ├── ply.py               # PLY read + write logic
-│   └── las.py               # LAS/LAZ read + write logic
+│   ├── las.py               # LAS/LAZ read + write logic
+│   ├── pcd.py               # PCD read + write logic
+│   └── xyz.py               # XYZ read + write logic
 ├── ui/
 │   ├── __init__.py
 │   └── panel.py             # 3D Viewport sidebar (N-panel)
