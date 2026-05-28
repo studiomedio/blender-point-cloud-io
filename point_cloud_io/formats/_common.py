@@ -61,8 +61,30 @@ def build_point_cloud(context, name, points, extras, point_radius):
         'intensity' -> (N,)   float32
         any other key -> (N,) float32 scalar attribute
 
+    NaN-positioned points are dropped (and their extras filtered to match)
+    before the PointCloud is built. PCL's convention is that depth-camera
+    pixels with invalid range get NaN coordinates, and one of those slipping
+    through poisons the bbox / radius calculation downstream.
+
     Returns the created object.
     """
+    points = np.asarray(points)
+    if len(points) > 0:
+        finite_mask = np.isfinite(points).all(axis=1)
+        if not finite_mask.all():
+            n_dropped = int((~finite_mask).sum())
+            points = points[finite_mask]
+            extras = {
+                key: (value[finite_mask]
+                      if isinstance(value, np.ndarray) and len(value) == len(finite_mask)
+                      else value)
+                for key, value in extras.items()
+            }
+            print(
+                f"[Point Cloud I/O] Dropped {n_dropped:,} point(s) with NaN/Inf "
+                f"coordinates while building '{name}'."
+            )
+
     mesh = bpy.data.meshes.new(name=f"{name}_mesh")
     mesh.vertices.add(len(points))
     mesh.vertices.foreach_set("co", points.ravel())
@@ -171,7 +193,8 @@ def suggest_radius(point_cloud, fallback=_DEFAULT_RADIUS):
     Uses the average inter-point spacing for a roughly uniform distribution
     (`diagonal / count**(1/3)`) and halves it so points sit just shy of each
     other rather than overlapping. Returns `fallback` when no points are
-    available or when the cloud has zero extent.
+    available, when the cloud has zero extent, or when positions contain
+    NaN / Inf that would otherwise propagate into the result.
     """
     attrs = point_cloud.attributes
     if 'position' not in attrs:
@@ -184,10 +207,15 @@ def suggest_radius(point_cloud, fallback=_DEFAULT_RADIUS):
     attrs['position'].data.foreach_get('vector', positions)
     positions = positions.reshape(-1, 3)
 
+    finite_mask = np.isfinite(positions).all(axis=1)
+    if not finite_mask.any():
+        return fallback
+    positions = positions[finite_mask]
+
     extent = positions.max(axis=0) - positions.min(axis=0)
     diagonal = float(np.linalg.norm(extent))
-    if diagonal <= 0.0:
+    if not np.isfinite(diagonal) or diagonal <= 0.0:
         return fallback
 
-    spacing = diagonal / max(count ** (1.0 / 3.0), 1.0)
+    spacing = diagonal / max(len(positions) ** (1.0 / 3.0), 1.0)
     return max(spacing * 0.5, 1e-6)

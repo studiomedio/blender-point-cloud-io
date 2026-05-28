@@ -24,6 +24,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 - No new wheels — both PCD and XYZ readers/writers are pure-Python + numpy.
 
+### Fixed
+
+- **NaN-positioned points are dropped on import** (`_common.build_point_cloud`). PCL convention is that depth-camera pixels with invalid range get NaN coordinates; one of those slipping into the bbox computation poisoned `suggest_radius` (which then returned NaN), so the radius shown in the N-panel was NaN and the cloud rendered invisibly. The console prints how many points were dropped. Triggered most visibly by `office1.pcd` and other organized RGB-D PCDs.
+- **`suggest_radius` is now NaN-safe** as a defense-in-depth — strays in scenes created by other paths (Geometry Nodes, scripts) no longer break the panel's Auto button either.
+
 ## [0.3.0] – 2026-05-28
 
 ### Added
