@@ -10,8 +10,9 @@ A Blender 5.0+ extension for importing and exporting point cloud files. Built ar
 |--------|:------:|:------:|
 | E57 (`.e57`) | ✅ | ✅ (no normals) |
 | PLY (`.ply`) | ✅ | ✅ (ASCII or binary) |
+| LAS / LAZ (`.las`, `.laz`) | ✅ | ✅ |
 
-Other formats (LAS/LAZ, PCD, XYZ) are planned.
+Other formats (PCD, XYZ) are planned.
 
 ## About E57
 
@@ -89,6 +90,22 @@ Reads positions (`x y z`), colors (`red green blue [alpha]`, auto-detects 0–25
 
 Writes positions, normals, colors (as RGB uint8), and any extra `FLOAT` / `INT` / `BOOLEAN` POINT-domain attributes. Binary little-endian by default; tick **ASCII** for a human-readable file.
 
+### Importing LAS / LAZ
+
+`File > Import > LAS/LAZ Point Cloud (.las, .laz)`
+
+Reads positions (with the file's scale + offset applied), RGB (16-bit → normalized), intensity (normalized to 0–1), classification (uint8 → INT attribute), and optional return-number / number-of-returns. Compressed `.laz` files are decompressed by the bundled `lazrs` codec.
+
+Classification codes follow the ASPRS standard: `2 = ground`, `5 = high vegetation`, `6 = building`, `9 = water`, etc. The values land in an `INT` point attribute named `classification` so you can drive material colors or visibility per-class in Geometry Nodes.
+
+### Exporting LAS / LAZ
+
+`File > Export > LAS/LAZ Point Cloud (.las, .laz)`
+
+Writes Point Data Record Format 3 (LAS 1.2) — broadly compatible, includes RGB + intensity + classification + return info + GPS time. Tick **Compress (LAZ)** to write `.laz` via the `lazrs` codec.
+
+Positions are quantized to millimeter precision (`scale=0.001`), with the offset set to the data minimum so the int32 storage stays in range. Color is upscaled from Blender's 8-bit to LAS's 16-bit channels.
+
 ### Sidebar panel
 
 After importing, press **N** in the 3D Viewport → **Point Cloud** tab. The panel shows point count and present attributes, plus a radius control with a logarithmic slider and `÷10 / ÷2 / Auto / ×2 / ×10` buttons for quick magnitude changes.
@@ -106,12 +123,15 @@ point_cloud_io/
 │   ├── import_e57.py        # File > Import > E57 operator
 │   ├── export_e57.py        # File > Export > E57 operator
 │   ├── import_ply.py        # File > Import > PLY operator
-│   └── export_ply.py        # File > Export > PLY operator
+│   ├── export_ply.py        # File > Export > PLY operator
+│   ├── import_las.py        # File > Import > LAS/LAZ operator
+│   └── export_las.py        # File > Export > LAS/LAZ operator
 ├── formats/
 │   ├── __init__.py
 │   ├── _common.py           # shared PointCloud build / read helpers
 │   ├── e57.py               # E57 read + write logic
-│   └── ply.py               # PLY read + write logic
+│   ├── ply.py               # PLY read + write logic
+│   └── las.py               # LAS/LAZ read + write logic
 ├── ui/
 │   ├── __init__.py
 │   └── panel.py             # 3D Viewport sidebar (N-panel)

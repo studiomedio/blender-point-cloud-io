@@ -3,6 +3,24 @@
 All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **LAS / LAZ import** via `File > Import > LAS/LAZ Point Cloud (.las, .laz)`.
+  - Reads positions (with file scale + offset applied), 16-bit RGB normalised to 0–1, intensity normalised to 0–1, ASPRS classification (uint8 → INT attribute), and optional return-number / number-of-returns.
+  - LAZ decompression via the bundled `lazrs` codec.
+- **LAS / LAZ export** via `File > Export > LAS/LAZ Point Cloud (.las, .laz)`.
+  - Writes Point Data Record Format 3 (LAS 1.2) — positions, RGB, intensity, classification, return info, GPS time slot.
+  - Positions quantised to millimeter precision with offset set to the data minimum.
+  - `Compress (LAZ)` tickbox writes `.laz`.
+- `_common.build_point_cloud` now picks INT / BOOLEAN / FLOAT attribute types based on the numpy dtype of each `extras` array, instead of forcing every scalar to FLOAT.
+
+### Bundled wheels
+
+- `laspy-2.7.0-py3-none-any`
+- `lazrs-0.8.1-cp313-cp313` for macOS arm64, manylinux x86_64, Windows x86_64
+
 ## [0.2.0] – 2026-05-28
 
 ### Added

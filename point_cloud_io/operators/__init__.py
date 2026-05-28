@@ -1,8 +1,10 @@
 import bpy
 
 from .export_e57 import EXPORT_OT_e57, menu_func_export_e57
+from .export_las import EXPORT_OT_las, menu_func_export_las
 from .export_ply import EXPORT_OT_ply, menu_func_export_ply
 from .import_e57 import IMPORT_OT_e57, menu_func_import_e57
+from .import_las import IMPORT_OT_las, menu_func_import_las
 from .import_ply import IMPORT_OT_ply, menu_func_import_ply
 
 _classes = (
@@ -10,9 +12,19 @@ _classes = (
     EXPORT_OT_e57,
     IMPORT_OT_ply,
     EXPORT_OT_ply,
+    IMPORT_OT_las,
+    EXPORT_OT_las,
 )
-_import_menu_funcs = (menu_func_import_e57, menu_func_import_ply)
-_export_menu_funcs = (menu_func_export_e57, menu_func_export_ply)
+_import_menu_funcs = (
+    menu_func_import_e57,
+    menu_func_import_ply,
+    menu_func_import_las,
+)
+_export_menu_funcs = (
+    menu_func_export_e57,
+    menu_func_export_ply,
+    menu_func_export_las,
+)
 
 
 def register():

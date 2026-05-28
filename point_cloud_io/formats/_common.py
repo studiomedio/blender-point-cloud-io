@@ -89,9 +89,16 @@ def build_point_cloud(context, name, points, extras, point_radius):
     for key, values in extras.items():
         if key in reserved:
             continue
-        values = np.asarray(values, dtype=np.float32)
-        a = attrs.new(name=key, type='FLOAT', domain='POINT')
-        a.data.foreach_set("value", values)
+        arr = np.asarray(values)
+        if arr.dtype.kind in ('i', 'u'):
+            a = attrs.new(name=key, type='INT', domain='POINT')
+            a.data.foreach_set("value", arr.astype(np.int32))
+        elif arr.dtype.kind == 'b':
+            a = attrs.new(name=key, type='BOOLEAN', domain='POINT')
+            a.data.foreach_set("value", arr.astype(np.bool_))
+        else:
+            a = attrs.new(name=key, type='FLOAT', domain='POINT')
+            a.data.foreach_set("value", arr.astype(np.float32))
 
     radius_attr = attrs.new(name="radius", type='FLOAT', domain='POINT')
     radius_attr.data.foreach_set(
