@@ -10,11 +10,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - **LAS / LAZ import** via `File > Import > LAS/LAZ Point Cloud (.las, .laz)`.
   - Reads positions (with file scale + offset applied), 16-bit RGB normalised to 0–1, intensity normalised to 0–1, ASPRS classification (uint8 → INT attribute), and optional return-number / number-of-returns.
   - LAZ decompression via the bundled `lazrs` codec.
+  - **Center on Origin** option (on by default) subtracts the data minimum from positions before casting to float32, so georeferenced LiDAR (UTM, State Plane, etc.) lands near the world origin and stays within float32 precision. The subtracted offset is stored as a `las_origin_offset` custom property on the object and added back automatically on export, preserving the original coordinate system through a Blender round-trip.
 - **LAS / LAZ export** via `File > Export > LAS/LAZ Point Cloud (.las, .laz)`.
   - Writes Point Data Record Format 3 (LAS 1.2) — positions, RGB, intensity, classification, return info, GPS time slot.
   - Positions quantised to millimeter precision with offset set to the data minimum.
   - `Compress (LAZ)` tickbox writes `.laz`.
 - `_common.build_point_cloud` now picks INT / BOOLEAN / FLOAT attribute types based on the numpy dtype of each `extras` array, instead of forcing every scalar to FLOAT.
+
+### Changed
+
+- All three importers (E57, PLY, LAS/LAZ) gained an **Auto Point Radius** toggle, on by default. When enabled, the radius is picked from the cloud's bounding box and point density instead of using the manual field. Without this, large LiDAR clouds (kilometre-scale extents) were invisible because the default 5 cm radius was sub-pixel against the scene. The manual **Point Radius** field is greyed out when Auto is on.
+- `suggest_radius` moved from `ui/panel.py` to `formats/_common.py` so importers and the sidebar's **Auto** button share one implementation.
+
+### Diagnostics
+
+- LAS import now logs point count, bounding box, extent, attribute names, and the effective radius to the console; the info-bar success message includes the bbox extent and selected radius.
 
 ### Bundled wheels
 

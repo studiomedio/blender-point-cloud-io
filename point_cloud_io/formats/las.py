@@ -37,6 +37,7 @@ def import_las_file(
     import_return_info,
     scale_factor,
     point_radius,
+    center_on_origin,
 ):
     """Read a LAS or LAZ file and create a PointCloud object."""
     import laspy
@@ -45,7 +46,21 @@ def import_las_file(
     las = laspy.read(filepath)
 
     # laspy returns x/y/z already in real-world units (scale + offset applied).
-    positions = np.column_stack((las.x, las.y, las.z)).astype(np.float32)
+    # Stay in float64 while we still have raw georeferenced magnitudes; we'll
+    # cast to float32 only after subtracting the centering offset, so we don't
+    # lose precision on UTM-scale coordinates (millions of metres).
+    x = np.asarray(las.x, dtype=np.float64)
+    y = np.asarray(las.y, dtype=np.float64)
+    z = np.asarray(las.z, dtype=np.float64)
+
+    if center_on_origin and x.size:
+        origin_offset = np.array([x.min(), y.min(), z.min()], dtype=np.float64)
+    else:
+        origin_offset = np.zeros(3, dtype=np.float64)
+
+    positions = np.column_stack(
+        (x - origin_offset[0], y - origin_offset[1], z - origin_offset[2])
+    ).astype(np.float32)
     positions *= scale_factor
 
     extras = {}
@@ -77,6 +92,13 @@ def import_las_file(
     base_name = os.path.splitext(os.path.basename(filepath))[0]
     pc = build_point_cloud(context, base_name, positions, extras, point_radius)
     attach_material(pc, f"Mat_{base_name}", extras)
+
+    # Stash the centering offset so it can be inspected in the N-panel
+    # (Item > Custom Properties) and used to round-trip the georeference
+    # back to LAS on export. Only present when actually non-zero.
+    if np.any(origin_offset):
+        pc["las_origin_offset"] = origin_offset.tolist()
+
     return [pc]
 
 
@@ -102,7 +124,14 @@ def _gather_export_data(objects, apply_transforms):
         if count == 0:
             continue
 
-        positions_list.append(get_positions(obj, count, apply_transforms))
+        positions = get_positions(obj, count, apply_transforms)
+        # If this object was imported from a georeferenced LAS, add the
+        # centering offset back so the output file carries the original
+        # coordinate system.
+        offset = obj.get('las_origin_offset')
+        if offset is not None:
+            positions = positions + np.asarray(offset, dtype=np.float64)
+        positions_list.append(positions)
 
         colors = get_colors_uint8(obj, count)
         if colors is None:

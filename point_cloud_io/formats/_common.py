@@ -160,3 +160,34 @@ def get_scalar(obj, count, name):
     arr = np.empty(count, dtype=np.float32)
     obj.data.attributes[name].data.foreach_get('value', arr)
     return arr
+
+
+_DEFAULT_RADIUS = 0.005
+
+
+def suggest_radius(point_cloud, fallback=_DEFAULT_RADIUS):
+    """Pick a radius based on the cloud's bounding box and point count.
+
+    Uses the average inter-point spacing for a roughly uniform distribution
+    (`diagonal / count**(1/3)`) and halves it so points sit just shy of each
+    other rather than overlapping. Returns `fallback` when no points are
+    available or when the cloud has zero extent.
+    """
+    attrs = point_cloud.attributes
+    if 'position' not in attrs:
+        return fallback
+    count = len(attrs['position'].data)
+    if count == 0:
+        return fallback
+
+    positions = np.empty(count * 3, dtype=np.float32)
+    attrs['position'].data.foreach_get('vector', positions)
+    positions = positions.reshape(-1, 3)
+
+    extent = positions.max(axis=0) - positions.min(axis=0)
+    diagonal = float(np.linalg.norm(extent))
+    if diagonal <= 0.0:
+        return fallback
+
+    spacing = diagonal / max(count ** (1.0 / 3.0), 1.0)
+    return max(spacing * 0.5, 1e-6)

@@ -2,6 +2,7 @@ import bpy
 from bpy.props import BoolProperty, FloatProperty, StringProperty
 from bpy_extras.io_utils import ImportHelper
 
+from ..formats._common import suggest_radius
 from ..formats.e57 import import_e57_file
 
 
@@ -36,9 +37,17 @@ class IMPORT_OT_e57(bpy.types.Operator, ImportHelper):
         default=1.0,
         min=0.0001,
     )
+    auto_radius: BoolProperty(
+        name="Auto Point Radius",
+        description=(
+            "Pick a sensible point radius from the cloud's bounding box "
+            "and density. Disable to use the value below verbatim"
+        ),
+        default=True,
+    )
     point_radius: FloatProperty(
         name="Point Radius",
-        description="Visible radius of each point",
+        description="Visible radius of each point (ignored when Auto Point Radius is on)",
         default=0.01,
         min=0.0,
         step=0.01,
@@ -61,7 +70,10 @@ class IMPORT_OT_e57(bpy.types.Operator, ImportHelper):
 
         col = layout.column()
         col.prop(self, "scale_factor")
-        col.prop(self, "point_radius")
+        col.prop(self, "auto_radius")
+        row = col.row()
+        row.active = not self.auto_radius
+        row.prop(self, "point_radius")
         col.prop(self, "merge_scans")
 
     def execute(self, context):
@@ -81,7 +93,8 @@ class IMPORT_OT_e57(bpy.types.Operator, ImportHelper):
             return {'CANCELLED'}
 
         for obj in objects:
-            obj.data.uniform_radius = self.point_radius
+            radius = suggest_radius(obj.data) if self.auto_radius else self.point_radius
+            obj.data.uniform_radius = radius
 
         total_points = sum(len(obj.data.attributes['position'].data) for obj in objects)
         self.report(

@@ -22,6 +22,24 @@ ASTM E57 is a compact, vendor-neutral container for point clouds, images, and me
 - [Sample E57 files](http://www.libe57.org/data.html) — public test datasets (Stanford bunny, scan stations, etc.)
 - [Coordinate system conventions](http://www.libe57.org/bestCoordinates.html) — how scanners encode pose and orientation; useful when imported clouds appear flipped or rotated
 
+## About LAS / LAZ
+
+ASPRS LAS is the dominant format for **airborne and terrestrial LiDAR** data. Each point stores a position (quantized to int32 with a header-declared scale and offset), 16-bit intensity, return-number metadata for multi-return LiDAR, and an ASPRS classification code (ground, building, vegetation, water, etc.). LAS is uncompressed; **LAZ** is the same content compressed via LASzip — typically 10–20 % of the original size with no loss.
+
+- [ASPRS LAS specification](https://www.asprs.org/divisions-committees/lidar-division/laser-las-file-format-exchange-activities) — official format home, including the current LAS 1.4 PDF
+- [USGS Lidar Explorer](https://apps.nationalmap.gov/lidar-explorer/) — free public LiDAR coverage of the United States; download `.laz` tiles by drawing a polygon on the map
+- [OpenTopography](https://portal.opentopography.org/datasets) — curated LiDAR datasets from research and government sources around the world
+
+**Small samples for quick testing:**
+
+- [`laspy` test data](https://github.com/laspy/laspy/tree/main/tests/data) — handful of tiny LAS/LAZ files (≤ a few hundred KB) covering different point-data record formats. Good for verifying your import path works.
+- [PDAL test data](https://github.com/PDAL/PDAL/tree/master/test/data/las) — slightly larger variety with georeferenced examples.
+- [Autzen Stadium (`autzen.laz`)](https://github.com/PDAL/data/raw/master/autzen/autzen.laz) — ~50 MB, classic LiDAR demo dataset (~10M points, real-world UTM coords). Great for stress-testing.
+
+> Heads up: most "real" LAS files use **georeferenced coordinates** (UTM, State Plane), so the cloud lands millions of metres from origin. The importer's **Center on Origin** option (on by default) subtracts the data minimum so you can actually see the result. The original offset is stored as a `las_origin_offset` custom property on the object and added back on export.
+>
+> Aerial LiDAR clouds also tend to be **kilometres across**, which makes a 5 cm point radius sub-pixel on the viewport. The importer's **Auto Point Radius** option (also on by default) picks a sensible radius from the cloud's extent and density — typically tens of metres for landscape-scale data, sub-millimetre for room-scale scans.
+
 ## Requirements
 
 - **Blender 5.0** or newer (Python 3.13)

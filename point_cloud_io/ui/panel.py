@@ -5,6 +5,8 @@ import numpy as np
 from bpy.props import FloatProperty
 from bpy.types import Operator, Panel
 
+from ..formats._common import suggest_radius as _common_suggest_radius
+
 
 _DEFAULT_RADIUS = 0.005
 _MIN_RADIUS = 1e-6
@@ -38,27 +40,7 @@ def _set_radius_log(point_cloud, value):
 
 
 def _suggest_radius(point_cloud):
-    """Pick a radius based on the cloud's bounding box and point count."""
-    attrs = point_cloud.attributes
-    if 'position' not in attrs:
-        return _DEFAULT_RADIUS
-    count = len(attrs['position'].data)
-    if count == 0:
-        return _DEFAULT_RADIUS
-
-    positions = np.empty(count * 3, dtype=np.float32)
-    attrs['position'].data.foreach_get('vector', positions)
-    positions = positions.reshape(-1, 3)
-
-    extent = positions.max(axis=0) - positions.min(axis=0)
-    diagonal = float(np.linalg.norm(extent))
-    if diagonal <= 0.0:
-        return _DEFAULT_RADIUS
-
-    # Approx. average inter-point spacing for a uniform distribution,
-    # halved so points sit a hair apart rather than overlapping.
-    spacing = diagonal / max(count ** (1.0 / 3.0), 1.0)
-    return max(spacing * 0.5, _MIN_RADIUS)
+    return _common_suggest_radius(point_cloud, fallback=_DEFAULT_RADIUS)
 
 
 class POINTCLOUD_OT_scale_radius(Operator):
