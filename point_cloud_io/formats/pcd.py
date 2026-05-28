@@ -37,6 +37,7 @@ from ._common import (
     get_scalar,
     reset_selection,
 )
+from ._lzf import lzf_compress, lzf_decompress
 
 
 # PCD TYPE/SIZE combinations -> numpy dtype suffix.
@@ -146,6 +147,60 @@ def _read_data_binary(file_handle, header):
     return data
 
 
+def _read_data_binary_compressed(file_handle, header):
+    """Read the LZF-compressed SoA payload of a PCD binary_compressed file.
+
+    Layout after the header newline:
+        uint32 LE  compressed_size
+        uint32 LE  uncompressed_size
+        compressed_size bytes  LZF-compressed Structure-of-Arrays buffer
+
+    The decompressed buffer concatenates one packed array per field,
+    in declaration order — NOT interleaved like `binary` mode.
+    """
+    fields = header['fields']
+    counts = header['count']
+    points = header['points']
+
+    size_header = file_handle.read(8)
+    if len(size_header) != 8:
+        raise ValueError("PCD binary_compressed: missing size header.")
+    compressed_size, uncompressed_size = struct.unpack('<II', size_header)
+
+    compressed = file_handle.read(compressed_size)
+    if len(compressed) != compressed_size:
+        raise ValueError(
+            f"PCD binary_compressed: expected {compressed_size} compressed bytes, "
+            f"got {len(compressed)}."
+        )
+
+    buf = lzf_decompress(compressed, uncompressed_size)
+
+    data = {}
+    offset = 0
+    for idx, name in enumerate(fields):
+        np_type = _dtype_for_field(header, idx)
+        elem_size = np.dtype(np_type).itemsize
+        block_size = points * counts[idx] * elem_size
+
+        if offset + block_size > uncompressed_size:
+            raise ValueError("PCD binary_compressed: field block overruns buffer.")
+
+        array = np.frombuffer(
+            buf, dtype='<' + np_type, count=points * counts[idx], offset=offset
+        )
+        if counts[idx] == 1:
+            data[name] = array.copy()
+        else:
+            reshaped = array.reshape(points, counts[idx])
+            for c in range(counts[idx]):
+                data[f"{name}_{c}"] = reshaped[:, c].copy()
+
+        offset += block_size
+
+    return data
+
+
 def _read_data_ascii(file_handle, header):
     fields = header['fields']
     counts = header['count']
@@ -247,11 +302,8 @@ def import_pcd_file(
     with open(filepath, 'rb') as file_handle:
         header, mode = _parse_header(file_handle)
         if mode == 'binary_compressed':
-            raise RuntimeError(
-                "PCD binary_compressed (LZF) is not supported. Convert with "
-                "pcl_convert_pcd_ascii_binary or CloudCompare first."
-            )
-        if mode == 'binary':
+            data = _read_data_binary_compressed(file_handle, header)
+        elif mode == 'binary':
             data = _read_data_binary(file_handle, header)
         else:
             data = _read_data_ascii(file_handle, header)
@@ -283,16 +335,20 @@ def export_pcd_file(
     objects,
     filepath,
     *,
-    use_ascii,
+    mode,
     apply_transforms,
 ):
     """Write a single PCD from one or more PointCloud objects.
+
+    `mode` is one of ``'ascii'``, ``'binary'``, or ``'binary_compressed'``.
 
     Multiple selected objects are concatenated into a single unordered cloud
     (HEIGHT = 1). PCD is a flat single-cloud format; there's no per-scan slot.
 
     Returns the total number of points written.
     """
+    if mode not in ('ascii', 'binary', 'binary_compressed'):
+        raise ValueError(f"Unknown PCD write mode: {mode!r}")
     if not objects:
         raise RuntimeError("No PointCloud objects to export.")
 
@@ -377,10 +433,10 @@ def export_pcd_file(
         "HEIGHT 1\n"
         "VIEWPOINT 0 0 0 1 0 0 0\n"
         f"POINTS {total}\n"
-        f"DATA {'ascii' if use_ascii else 'binary'}\n"
+        f"DATA {mode}\n"
     )
 
-    if use_ascii:
+    if mode == 'ascii':
         with open(filepath, 'w') as out:
             out.write(header_text)
             np.savetxt(
@@ -388,7 +444,9 @@ def export_pcd_file(
                 np.column_stack(columns),
                 fmt=' '.join('%.6f' for _ in columns),
             )
-    else:
+        return total
+
+    if mode == 'binary':
         dtype = np.dtype([(name, '<f4') for name in fields])
         structured = np.empty(total, dtype=dtype)
         for name, col in zip(fields, columns):
@@ -396,5 +454,19 @@ def export_pcd_file(
         with open(filepath, 'wb') as out:
             out.write(header_text.encode('ascii'))
             out.write(structured.tobytes())
+        return total
+
+    # binary_compressed: payload is Structure-of-Arrays — each field's packed
+    # bytes appear consecutively, not interleaved per-point.
+    soa = bytearray()
+    for col in columns:
+        soa.extend(col.astype(np.float32).tobytes())
+    uncompressed_size = len(soa)
+    compressed = lzf_compress(bytes(soa))
+
+    with open(filepath, 'wb') as out:
+        out.write(header_text.encode('ascii'))
+        out.write(struct.pack('<II', len(compressed), uncompressed_size))
+        out.write(compressed)
 
     return total

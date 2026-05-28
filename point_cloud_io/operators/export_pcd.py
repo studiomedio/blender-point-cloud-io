@@ -1,5 +1,5 @@
 import bpy
-from bpy.props import BoolProperty, StringProperty
+from bpy.props import BoolProperty, EnumProperty, StringProperty
 from bpy_extras.io_utils import ExportHelper
 
 from ..formats.pcd import export_pcd_file
@@ -30,10 +30,17 @@ class EXPORT_OT_pcd(bpy.types.Operator, ExportHelper):
         description="Bake object Location/Rotation/Scale into the exported coordinates",
         default=True,
     )
-    use_ascii: BoolProperty(
-        name="ASCII",
-        description="Write a human-readable ASCII PCD instead of binary (larger files, useful for debugging)",
-        default=False,
+    data_mode: EnumProperty(
+        name="Data Mode",
+        description="How the per-point data block is written",
+        items=(
+            ('binary', "Binary", "Raw little-endian binary (default; widely compatible, fast)"),
+            ('binary_compressed', "Binary Compressed (LZF)",
+             "LZF-compressed Structure-of-Arrays payload — same as PCL writes by default. "
+             "Smaller files, slightly slower write"),
+            ('ascii', "ASCII", "Human-readable text (larger files, useful for debugging)"),
+        ),
+        default='binary',
     )
 
     def draw(self, context):
@@ -42,7 +49,7 @@ class EXPORT_OT_pcd(bpy.types.Operator, ExportHelper):
         layout.use_property_decorate = False
 
         col = layout.column(heading="Format")
-        col.prop(self, "use_ascii")
+        col.prop(self, "data_mode")
 
         col = layout.column(heading="Geometry")
         col.prop(self, "apply_modifiers")
@@ -88,7 +95,7 @@ class EXPORT_OT_pcd(bpy.types.Operator, ExportHelper):
             total = export_pcd_file(
                 objects,
                 self.filepath,
-                use_ascii=self.use_ascii,
+                mode=self.data_mode,
                 apply_transforms=self.apply_transforms,
             )
         except Exception as err:

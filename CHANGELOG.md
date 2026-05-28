@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - **PCD export** via `File > Export > PCD Point Cloud (.pcd)`.
   - Writes a single unordered cloud (`HEIGHT = 1`) with `x y z` + optional `normal_x/y/z`, packed `rgb`, and `intensity`.
   - Binary by default; ASCII tickbox for debugging.
+- **PCD `binary_compressed` (LZF) read and write support.** A pure-Python LZF codec ([`formats/_lzf.py`](point_cloud_io/formats/_lzf.py)) handles both decompression on read and compression on write — no new wheels. The PCD exporter's previous **ASCII** tickbox is replaced with a **Data Mode** dropdown: `Binary` (default) / `Binary Compressed (LZF)` / `ASCII`.
 - **XYZ import** via `File > Import > XYZ Point Cloud (.xyz, .txt, .csv)`.
   - Plain text with no header; column layout inferred from column count (3 / 4 / 6 / 7 / 9 columns recognised; anything else becomes opaque `extra_*` FLOAT attributes).
   - Auto-detects comma vs whitespace separator; skips `#`-prefixed comment lines.

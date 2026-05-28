@@ -128,13 +128,13 @@ Positions are quantized to millimeter precision (`scale=0.001`), with the offset
 
 `File > Import > PCD Point Cloud (.pcd)`
 
-Reads positions (`x y z`), normals (`normal_x/y/z`), packed RGB / RGBA, intensity, and any other per-point scalar fields as point attributes. Supports `ascii` and `binary` PCD; **`binary_compressed` (LZF) is not supported** — convert with `pcl_convert_pcd_ascii_binary` or CloudCompare first.
+Reads positions (`x y z`), normals (`normal_x/y/z`), packed RGB / RGBA, intensity, and any other per-point scalar fields as point attributes. Supports all three PCD data modes: **`ascii`**, **`binary`**, and **`binary_compressed`** (LZF). LZF compression is handled by a pure-Python decompressor — no extra wheels.
 
 ### Exporting PCD
 
 `File > Export > PCD Point Cloud (.pcd)`
 
-Writes a single unordered cloud (`HEIGHT = 1`). Columns are `x y z` + optionally `normal_x/y/z`, packed `rgb`, and `intensity`. Binary by default; tick **ASCII** for a human-readable file. Multiple selected PointCloud objects are concatenated into one PCD.
+Writes a single unordered cloud (`HEIGHT = 1`). Columns are `x y z` + optionally `normal_x/y/z`, packed `rgb`, and `intensity`. The **Data Mode** dropdown chooses between `binary` (default), `binary_compressed` (LZF — same as PCL writes by default, smaller files), or `ascii`. Multiple selected PointCloud objects are concatenated into one PCD.
 
 ### Importing XYZ
 
