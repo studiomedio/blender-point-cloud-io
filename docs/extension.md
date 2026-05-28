@@ -1,56 +1,116 @@
-Import and export ASTM E57 point cloud files directly into Blender's native **PointCloud** object — with colors, normals, intensity, and a sidebar panel for live radius control.
+Import and export point cloud files in **five formats** — E57, PLY, LAS/LAZ, PCD, and XYZ — directly into Blender's native **PointCloud** object. Colors, normals, intensity, classification, and per-point custom fields land as point attributes you can drive with Geometry Nodes or shaders.
 
 ![Stanford bunny imported from E57](images/imported-bunny.jpg)
 
+## Supported formats
+
+| Format | Import | Export | Notes |
+|---|:---:|:---:|---|
+| **E57** (`.e57`) | ✅ | ✅ | ASTM standard for LiDAR / terrestrial scanners. Multi-scan files supported. |
+| **PLY** (`.ply`) | ✅ | ✅ | Stanford Polygon Format. ASCII + binary (LE/BE). Distinct from Blender's built-in PLY, which produces a **mesh** — ours produces a **PointCloud**. |
+| **LAS / LAZ** (`.las`, `.laz`) | ✅ | ✅ | ASPRS LiDAR format. `.laz` decompression via the bundled `lazrs` codec. |
+| **PCD** (`.pcd`) | ✅ | ✅ | Point Cloud Library format. ASCII, binary, and `binary_compressed` (LZF) all supported. |
+| **XYZ** (`.xyz`, `.txt`, `.csv`) | ✅ | ✅ | Plain-text positions, with auto-detected column layout for color / normal / intensity columns. |
+
 ## Features
 
-- **Native PointCloud objects** — uses Blender's optimised point cloud geometry, not a mesh fallback.
-- **Multi-scan E57 import** — each scan in the file becomes its own object, or merge them all into one with a single toggle.
-- **Color, normal, and intensity attributes** — extracted automatically from the file when present and written as point attributes you can read in Geometry Nodes or shaders.
+- **Native PointCloud objects** — uses Blender's optimised point cloud geometry, not a mesh fallback. Handles million-point datasets smoothly.
+- **All per-point attributes preserved** — RGB, normals, intensity, ASPRS classification (uint8 → INT attribute), LiDAR return numbers, and any custom scalar fields from the file land as point attributes you can read in Geometry Nodes or shaders.
 - **Auto-generated material** — a Principled BSDF wired to the imported color or normal attribute, so points display correctly in Material Preview and Rendered shading right after import.
+- **Auto Point Radius** — picks a sensible point radius from the cloud's bounding box and density, on by default for every format. Kilometre-scale LiDAR scans are no longer invisible at the default 5 cm radius.
+- **Center on Origin** for georeferenced LiDAR — large LAS/LAZ files in UTM or State Plane coordinates are millions of metres from origin; the importer subtracts the data minimum so the cloud lands in float32-precision range. The offset is stashed on the object as `las_origin_offset` and added back automatically on export, preserving the original CRS.
 - **Sidebar panel (N-key)** — shows point count, present attributes, and a **logarithmic point-radius slider** plus `÷10 / ÷2 / Auto / ×2 / ×10` quick buttons. Works on any active PointCloud, not only freshly imported ones.
-- **E57 export** — write any PointCloud back to E57. Position, color, and intensity are preserved.
-- **Bundled dependencies** — `pye57` (libE57Format Python bindings) and `pyquaternion` ship with the extension as Python 3.13 wheels for macOS arm64, Linux x86_64, and Windows x86_64. No internet, no manual pip step.
+- **Bundled dependencies** — `pye57`, `pyquaternion`, `laspy`, and `lazrs` ship with the extension as Python 3.13 wheels for macOS arm64, Linux x86_64, and Windows x86_64. PCD and XYZ are pure Python + numpy — no extra wheels. No internet or manual pip step at install time.
 
 ## Usage
 
-### Import
+### E57
 
-`File > Import > E57 Point Cloud (.e57)`
+`File > Import > E57 Point Cloud (.e57)` · `File > Export > E57 Point Cloud (.e57)`
 
 ![Import dialog](images/import-dialog.png)
 
-Options in the file dialog:
+Each scan in a multi-scan E57 becomes its own PointCloud object, or merge them all with **Merge Scans**. Export writes one scan per selected PointCloud. Normals are not written back (limitation of `pye57`'s writer).
 
-- **Colors / Normals / Intensity** — extract these attributes when present.
-- **Scale** — global multiplier on coordinates.
-- **Point Radius** — initial visible radius for every point.
-- **Merge Scans** — collapse multi-scan files into a single object.
+### PLY
 
-### Export
+`File > Import > PLY Point Cloud (.ply)` · `File > Export > PLY Point Cloud (.ply)`
 
-`File > Export > E57 Point Cloud (.e57)`
+Reads positions, colors (auto-detects 0–255 vs 0–1 ranges), normals, and every other per-vertex scalar property as point attributes. ASCII and binary (little- and big-endian) both supported. **Distinct from Blender's built-in `Stanford PLY` importer**, which produces a mesh — ours produces a PointCloud, dramatically faster for large clouds.
 
-Each selected PointCloud object becomes one scan in the output file. Options for **Apply Modifiers** (evaluate Geometry Nodes before writing) and **Apply Transforms** (bake object location/rotation/scale into the coordinates) are available.
+### LAS / LAZ
+
+`File > Import > LAS/LAZ Point Cloud (.las, .laz)` · `File > Export > LAS/LAZ Point Cloud (.las, .laz)`
+
+Reads positions, 16-bit RGB normalised to 0–1, intensity, ASPRS classification, and optional multi-return info. LAZ decompression via the bundled `lazrs` codec. **Center on Origin** (on by default) keeps georeferenced data inside float32 precision; the original offset is round-tripped on export.
+
+Exports as Point Data Record Format 3 (LAS 1.2) — widely compatible. Tick **Compress (LAZ)** to write `.laz`.
+
+### PCD
+
+`File > Import > PCD Point Cloud (.pcd)` · `File > Export > PCD Point Cloud (.pcd)`
+
+Reads positions, packed RGB / RGBA (PCL's float-packed convention), normals (`normal_x/y/z`), intensity, and any other per-point scalar fields. All three PCD data modes supported: **ascii**, **binary**, and **binary_compressed** (LZF — handled by a pure-Python codec, no extra wheels). The exporter's **Data Mode** dropdown picks between the three.
+
+### XYZ
+
+`File > Import > XYZ Point Cloud (.xyz, .txt, .csv)` · `File > Export > XYZ Point Cloud (.xyz)`
+
+Plain text with no header. Column layout is inferred:
+
+| Columns | Interpretation |
+|---:|---|
+| 3 | `x y z` |
+| 4 | `x y z intensity` |
+| 6 | `x y z r g b` |
+| 7 | `x y z intensity r g b` |
+| 9 | `x y z r g b nx ny nz` |
+| other | first 3 are positions, the rest become `extra_0`, `extra_1`, … FLOAT attributes |
+
+Comma vs whitespace separator is auto-detected; `#`-prefixed comment lines are skipped.
 
 ### Sidebar panel
 
-Press **N** in the 3D Viewport → **Point Cloud** tab. Live radius adjustment works on any selected PointCloud, including ones created by Geometry Nodes or other add-ons.
+Press **N** in the 3D Viewport → **Point Cloud** tab. Shows point count and attributes; live radius adjustment works on any selected PointCloud, including ones created by Geometry Nodes or other add-ons.
 
 ![Sidebar panel](images/sidebar-panel.png)
 
 ## Limitations
 
-- **Export does not write normals.** `pye57`'s writer does not expose the normal extension fields. Imported normals are still preserved as a point attribute inside Blender — they're just not round-tripped back to E57.
-- **Intel Mac is not supported** out of the box. `pye57` provides cp313 wheels for macOS arm64, Linux x86_64, and Windows x86_64 only. Intel Mac users would need to build a wheel from source.
+- **E57 export does not write normals.** `pye57`'s writer does not expose the normal extension fields. Imported normals are still preserved as a point attribute inside Blender — they're just not round-tripped back to E57.
+- **Intel Mac is not supported** out of the box. `pye57` and `lazrs` ship cp313 wheels for macOS arm64, Linux x86_64, and Windows x86_64 only. Intel Mac users would need to build the wheels from source.
+- **LAS scale fixed at 1 mm.** Positions are quantised to millimetre precision on export. For country-scale or astronomical-coordinate clouds this could clip; configurable scale is on the roadmap.
+- **NaN-positioned points are dropped on import.** This is intentional — PCL writes NaN coordinates for invalid depth-camera pixels and these would otherwise poison the bounding-box / radius computation.
 
-## About E57
+## About the formats
 
-ASTM E57 is a compact, vendor-neutral standard for storing point clouds, images, and metadata produced by 3D imaging systems such as LiDAR, terrestrial laser scanners, and structured-light rigs.
+### E57
+
+ASTM standard for vendor-neutral storage of point clouds, images, and metadata from 3D imaging systems (LiDAR, terrestrial scanners, structured-light rigs).
 
 - Format home: [libe57.org](http://www.libe57.org/)
 - Sample files: [libe57.org/data.html](http://www.libe57.org/data.html)
 - Coordinate conventions: [libe57.org/bestCoordinates.html](http://www.libe57.org/bestCoordinates.html)
+
+### LAS / LAZ
+
+ASPRS standard for airborne and terrestrial LiDAR. LAS is uncompressed; LAZ is the same content compressed via LASzip (typically 10–20 % of the original size, lossless).
+
+- ASPRS specification: [asprs.org · LAS file format](https://www.asprs.org/divisions-committees/lidar-division/laser-las-file-format-exchange-activities)
+- US public LiDAR: [USGS Lidar Explorer](https://apps.nationalmap.gov/lidar-explorer/)
+- Global research datasets: [OpenTopography](https://portal.opentopography.org/datasets)
+
+### PCD
+
+Point Cloud Library's native format. Used heavily in robotics (ROS / ROS2), perception, and SLAM. ASCII header + per-point data in `ascii`, `binary`, or `binary_compressed` (LZF) form.
+
+### PLY
+
+The Stanford Polygon Format — one of the oldest 3D file formats. Simple ASCII header + per-vertex data (ASCII or binary). Widely supported by 3D scanning and Gaussian-splatting toolchains.
+
+### XYZ
+
+Not a strict standard — most software writes `x y z` per line, optionally with intensity / RGB / normals columns. The importer infers layout from the column count.
 
 ## Source
 

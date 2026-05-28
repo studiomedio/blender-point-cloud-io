@@ -1,18 +1,18 @@
 # Point Cloud I/O for Blender
 
-A Blender 5.0+ extension for importing and exporting point cloud files. Built around Blender's native **PointCloud** object type.
+A Blender 5.1+ extension for importing and exporting point cloud files. Built around Blender's native **PointCloud** object type.
 
 ![Stanford bunny imported from E57](docs/images/imported-bunny.jpg)
 
 ## Supported formats
 
-| Format | Import | Export |
-|--------|:------:|:------:|
-| E57 (`.e57`) | ✅ | ✅ (no normals) |
-| PLY (`.ply`) | ✅ | ✅ (ASCII or binary) |
-| LAS / LAZ (`.las`, `.laz`) | ✅ | ✅ |
-| PCD (`.pcd`) | ✅ (ASCII / binary) | ✅ (ASCII or binary) |
-| XYZ (`.xyz`, `.txt`, `.csv`) | ✅ | ✅ |
+| Format                       |       Import        |        Export        |
+| ---------------------------- | :-----------------: | :------------------: |
+| E57 (`.e57`)                 |         ✅          |   ✅ (no normals)    |
+| PLY (`.ply`)                 |         ✅          | ✅ (ASCII or binary) |
+| LAS / LAZ (`.las`, `.laz`)   |         ✅          |          ✅          |
+| PCD (`.pcd`)                 | ✅ (ASCII / binary) | ✅ (ASCII or binary) |
+| XYZ (`.xyz`, `.txt`, `.csv`) |         ✅          |          ✅          |
 
 ## About E57
 
@@ -42,7 +42,7 @@ ASPRS LAS is the dominant format for **airborne and terrestrial LiDAR** data. Ea
 
 ## Requirements
 
-- **Blender 5.0** or newer (Python 3.13)
+- **Blender 5.1** or newer (Python 3.13)
 
 The required Python wheels (`pye57`, `pyquaternion`) are bundled with the extension — no internet needed at install time.
 
@@ -142,14 +142,14 @@ Writes a single unordered cloud (`HEIGHT = 1`). Columns are `x y z` + optionally
 
 Plain-text format with no header — column layout is inferred:
 
-| Columns | Interpretation |
-|---:|---|
-| 3 | `x y z` |
-| 4 | `x y z intensity` |
-| 6 | `x y z r g b` (auto-detects 0–1 vs 0–255) |
-| 7 | `x y z intensity r g b` |
-| 9 | `x y z r g b nx ny nz` |
-| other | first 3 are positions, remaining columns become `extra_0`, `extra_1`, … FLOAT attributes |
+| Columns | Interpretation                                                                           |
+| ------: | ---------------------------------------------------------------------------------------- |
+|       3 | `x y z`                                                                                  |
+|       4 | `x y z intensity`                                                                        |
+|       6 | `x y z r g b` (auto-detects 0–1 vs 0–255)                                                |
+|       7 | `x y z intensity r g b`                                                                  |
+|       9 | `x y z r g b nx ny nz`                                                                   |
+|   other | first 3 are positions, remaining columns become `extra_0`, `extra_1`, … FLOAT attributes |
 
 Comma-separated values are auto-detected from the first data line; `#`-prefixed comment lines are skipped.
 
