@@ -88,8 +88,6 @@ class IMPORT_OT_las(bpy.types.Operator, ImportHelper):
         row.prop(self, "point_radius")
 
     def execute(self, context):
-        import numpy as np
-
         try:
             objects = import_las_file(
                 context,
@@ -110,59 +108,8 @@ class IMPORT_OT_las(bpy.types.Operator, ImportHelper):
             radius = suggest_radius(obj.data) if self.auto_radius else self.point_radius
             obj.data.uniform_radius = radius
 
-        # Frame the new object so it lands inside whatever the viewport is showing.
-        for obj in objects:
-            obj.select_set(True)
-        if objects:
-            context.view_layer.objects.active = objects[0]
-
-        total = 0
-        bbox_min = np.array([float('inf')] * 3)
-        bbox_max = np.array([-float('inf')] * 3)
-        for obj in objects:
-            attrs = obj.data.attributes
-            if 'position' not in attrs:
-                continue
-            count = len(attrs['position'].data)
-            total += count
-            if count == 0:
-                continue
-            positions = np.empty(count * 3, dtype=np.float32)
-            attrs['position'].data.foreach_get('vector', positions)
-            positions = positions.reshape(-1, 3)
-            bbox_min = np.minimum(bbox_min, positions.min(axis=0))
-            bbox_max = np.maximum(bbox_max, positions.max(axis=0))
-
-        if total == 0:
-            self.report({'WARNING'}, "LAS import produced 0 points — file may be empty.")
-            return {'FINISHED'}
-
-        extent = bbox_max - bbox_min
-        attr_names = sorted(
-            a.name for a in objects[0].data.attributes if a.name != 'position'
-        )
-
-        effective_radius = objects[0].data.uniform_radius if objects else 0.0
-
-        # Console output for full diagnostics.
-        print(
-            f"[Point Cloud I/O] LAS import:\n"
-            f"  file       : {self.filepath}\n"
-            f"  points     : {total:,}\n"
-            f"  bbox min   : {bbox_min.tolist()}\n"
-            f"  bbox max   : {bbox_max.tolist()}\n"
-            f"  extent     : {extent.tolist()}\n"
-            f"  attributes : {attr_names}\n"
-            f"  radius     : {effective_radius:.6g} ({'auto' if self.auto_radius else 'manual'})\n"
-            f"  center?    : {self.center_on_origin}"
-        )
-
-        self.report(
-            {'INFO'},
-            f"Imported {total:,} points "
-            f"(extent: {extent[0]:.2f} × {extent[1]:.2f} × {extent[2]:.2f}, "
-            f"radius: {effective_radius:.4g}). Press numpad-. to frame the view."
-        )
+        total = sum(len(obj.data.attributes['position'].data) for obj in objects)
+        self.report({'INFO'}, f"Imported {total:,} points.")
         return {'FINISHED'}
 
 

@@ -72,7 +72,6 @@ def build_point_cloud(context, name, points, extras, point_radius):
     if len(points) > 0:
         finite_mask = np.isfinite(points).all(axis=1)
         if not finite_mask.all():
-            n_dropped = int((~finite_mask).sum())
             points = points[finite_mask]
             extras = {
                 key: (value[finite_mask]
@@ -80,10 +79,6 @@ def build_point_cloud(context, name, points, extras, point_radius):
                       else value)
                 for key, value in extras.items()
             }
-            print(
-                f"[Point Cloud I/O] Dropped {n_dropped:,} point(s) with NaN/Inf "
-                f"coordinates while building '{name}'."
-            )
 
     mesh = bpy.data.meshes.new(name=f"{name}_mesh")
     mesh.vertices.add(len(points))
