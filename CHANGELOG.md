@@ -3,6 +3,12 @@
 All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] – 2026-06-01
+
+### Fixed
+
+- **Tagline shortened** to fit Blender Extensions' 64-character limit. The v0.5.0 tagline ("Import and export E57, PLY, LAS, LAZ, PCD, XYZ and PTS point cloud files", 71 chars) was rejected on upload; the manifest now reads "Import and export E57, PLY, LAS, LAZ, PCD, XYZ, PTS files" (57 chars). No code changes.
+
 ## [0.5.0] – 2026-06-01
 
 ### Added
