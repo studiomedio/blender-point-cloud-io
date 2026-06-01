@@ -1,5 +1,10 @@
 # Point Cloud I/O for Blender
 
+[![Latest release](https://img.shields.io/github/v/release/studiomedio/blender-point-cloud-io)](https://github.com/studiomedio/blender-point-cloud-io/releases)
+[![DOI](https://zenodo.org/badge/1251170922.svg)](https://doi.org/10.5281/zenodo.20488833)
+[![Blender](https://img.shields.io/badge/Blender-5.1%2B-F5792A?logo=blender&logoColor=white)](https://www.blender.org/)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
 A Blender 5.1+ extension for importing and exporting point cloud files. Built around Blender's native **PointCloud** object type.
 
 ![Stanford bunny imported from E57](docs/images/imported-bunny.jpg)

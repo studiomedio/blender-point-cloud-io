@@ -3,6 +3,12 @@
 All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Zenodo DOI** — releases are now archived on Zenodo and the project has a citation DOI ([10.5281/zenodo.20488833](https://doi.org/10.5281/zenodo.20488833)). A DOI badge linking to the concept DOI is shown at the top of the README.
+
 ## [0.5.1] – 2026-06-01
 
 ### Fixed
