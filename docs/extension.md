@@ -1,7 +1,5 @@
 Import and export point cloud files in **five formats** — E57, PLY, LAS/LAZ, PCD, and XYZ — directly into Blender's native **PointCloud** object. Colors, normals, intensity, classification, and per-point custom fields land as point attributes you can drive with Geometry Nodes or shaders.
 
-![Stanford bunny imported from E57](images/imported-bunny.jpg)
-
 ## Supported formats
 
 | Format | Import | Export | Notes |
@@ -11,6 +9,10 @@ Import and export point cloud files in **five formats** — E57, PLY, LAS/LAZ, P
 | **LAS / LAZ** (`.las`, `.laz`) | ✅ | ✅ | ASPRS LiDAR format. `.laz` decompression via the bundled `lazrs` codec. |
 | **PCD** (`.pcd`) | ✅ | ✅ | Point Cloud Library format. ASCII, binary, and `binary_compressed` (LZF) all supported. |
 | **XYZ** (`.xyz`, `.txt`, `.csv`) | ✅ | ✅ | Plain-text positions, with auto-detected column layout for color / normal / intensity columns. |
+
+## Installation
+
+In Blender, open `Edit > Preferences > Get Extensions`, search for "Point Cloud I/O", and click **Install**.
 
 ## Features
 
@@ -27,8 +29,6 @@ Import and export point cloud files in **five formats** — E57, PLY, LAS/LAZ, P
 ### E57
 
 `File > Import > E57 Point Cloud (.e57)` · `File > Export > E57 Point Cloud (.e57)`
-
-![Import dialog](images/import-dialog.png)
 
 Each scan in a multi-scan E57 becomes its own PointCloud object, or merge them all with **Merge Scans**. Export writes one scan per selected PointCloud. Normals are not written back (limitation of `pye57`'s writer).
 
@@ -72,8 +72,6 @@ Comma vs whitespace separator is auto-detected; `#`-prefixed comment lines are s
 ### Sidebar panel
 
 Press **N** in the 3D Viewport → **Point Cloud** tab. Shows point count and attributes; live radius adjustment works on any selected PointCloud, including ones created by Geometry Nodes or other add-ons.
-
-![Sidebar panel](images/sidebar-panel.png)
 
 ## Limitations
 

@@ -48,6 +48,17 @@ The required Python wheels (`pye57`, `pyquaternion`) are bundled with the extens
 
 ## Installation
 
+### From the Blender Extensions repository
+
+1. In Blender: `Edit > Preferences > Get Extensions`.
+2. Search for **Point Cloud I/O**.
+3. Click **Install**.
+4. Enable the add-on if it isn't enabled automatically.
+
+### From source (development / unreleased changes)
+
+Use this path if you want to try unreleased changes or work on the extension locally.
+
 1. Build a ZIP from the `point_cloud_io/` directory (or download a release):
 
    ```bash
