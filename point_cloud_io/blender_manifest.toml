@@ -1,9 +1,9 @@
 schema_version = "1.0.0"
 
 id = "point_cloud_io"
-version = "0.4.0"
+version = "0.5.0"
 name = "Point Cloud I/O"
-tagline = "Import and export E57 and PLY point cloud files"
+tagline = "Import and export E57, PLY, LAS, LAZ, PCD, XYZ and PTS point cloud files"
 maintainer = "Sławomir Sobczak, Studio Medio <studiomedio.com@gmail.com>"
 type = "add-on"
 

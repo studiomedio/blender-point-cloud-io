@@ -13,6 +13,7 @@ A Blender 5.1+ extension for importing and exporting point cloud files. Built ar
 | LAS / LAZ (`.las`, `.laz`)   |         ✅          |          ✅          |
 | PCD (`.pcd`)                 | ✅ (ASCII / binary) | ✅ (ASCII or binary) |
 | XYZ (`.xyz`, `.txt`, `.csv`) |         ✅          |          ✅          |
+| PTS (`.pts`)                 |         ✅          |          ✅          |
 
 ## About E57
 
@@ -170,6 +171,18 @@ Comma-separated values are auto-detected from the first data line; `#`-prefixed 
 
 Always ASCII. Column order: `x y z [intensity] [r g b] [nx ny nz]`. Tick the **Write Colors / Normals / Intensity** options to include each section; columns are only emitted when the underlying attribute exists on every exported object.
 
+### Importing PTS
+
+`File > Import > PTS Point Cloud (.pts)`
+
+Leica Cyclone text format — basically XYZ with a single integer count line at the top. The reader auto-detects the column layout from the row width: `x y z`, `x y z intensity`, `x y z r g b`, or `x y z intensity r g b` (the Leica canonical 7-column form). Intensity is normalised to 0–1; RGB auto-detects 0–255 vs 0–1.
+
+### Exporting PTS
+
+`File > Export > PTS Point Cloud (.pts)`
+
+Writes the count header followed by `x y z [intensity] [r g b]` rows. Intensity is scaled back to the 0–2047 Leica integer range; RGB is written as uint8 0–255. Tick the **Write Intensity** / **Write Colors** boxes to control which columns appear.
+
 ### Sidebar panel
 
 After importing, press **N** in the 3D Viewport → **Point Cloud** tab. The panel shows point count and present attributes, plus a radius control with a logarithmic slider and `÷10 / ÷2 / Auto / ×2 / ×10` buttons for quick magnitude changes.
@@ -193,7 +206,9 @@ point_cloud_io/
 │   ├── import_pcd.py        # File > Import > PCD operator
 │   ├── export_pcd.py        # File > Export > PCD operator
 │   ├── import_xyz.py        # File > Import > XYZ operator
-│   └── export_xyz.py        # File > Export > XYZ operator
+│   ├── export_xyz.py        # File > Export > XYZ operator
+│   ├── import_pts.py        # File > Import > PTS operator
+│   └── export_pts.py        # File > Export > PTS operator
 ├── formats/
 │   ├── __init__.py
 │   ├── _common.py           # shared PointCloud build / read helpers
@@ -201,7 +216,8 @@ point_cloud_io/
 │   ├── ply.py               # PLY read + write logic
 │   ├── las.py               # LAS/LAZ read + write logic
 │   ├── pcd.py               # PCD read + write logic
-│   └── xyz.py               # XYZ read + write logic
+│   ├── xyz.py               # XYZ read + write logic
+│   └── pts.py               # PTS read + write logic
 ├── ui/
 │   ├── __init__.py
 │   └── panel.py             # 3D Viewport sidebar (N-panel)

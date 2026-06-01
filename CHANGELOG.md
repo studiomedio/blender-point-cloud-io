@@ -3,6 +3,20 @@
 All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] – 2026-06-01
+
+### Added
+
+- **PTS import** via `File > Import > PTS Point Cloud (.pts)`.
+  - Reads the Leica Cyclone text format: integer count header line, then one point per line.
+  - Auto-detects the column layout from row width — 3 (`x y z`), 4 (`+ intensity`), 6 (`+ rgb`), or 7 (`+ intensity + rgb`, Leica canonical).
+  - Intensity is normalised to 0–1; RGB auto-detects 0–255 vs 0–1.
+- **PTS export** via `File > Export > PTS Point Cloud (.pts)`.
+  - Writes the count header followed by `x y z [intensity] [r g b]` rows.
+  - Intensity is scaled back to the 0–2047 Leica integer range; RGB written as uint8 0–255.
+  - Independent **Write Intensity** / **Write Colors** tickboxes.
+- Pure-Python + numpy implementation — no new wheel dependencies.
+
 ## [0.4.0] – 2026-05-28
 
 ### Added

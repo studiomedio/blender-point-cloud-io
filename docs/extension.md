@@ -1,4 +1,4 @@
-Import and export point cloud files in **five formats** — E57, PLY, LAS/LAZ, PCD, and XYZ — directly into Blender's native **PointCloud** object. Colors, normals, intensity, classification, and per-point custom fields land as point attributes you can drive with Geometry Nodes or shaders.
+Import and export point cloud files in **six formats** — E57, PLY, LAS/LAZ, PCD, XYZ, and PTS — directly into Blender's native **PointCloud** object. Colors, normals, intensity, classification, and per-point custom fields land as point attributes you can drive with Geometry Nodes or shaders.
 
 ## Supported formats
 
@@ -9,6 +9,7 @@ Import and export point cloud files in **five formats** — E57, PLY, LAS/LAZ, P
 | **LAS / LAZ** (`.las`, `.laz`) | ✅ | ✅ | ASPRS LiDAR format. `.laz` decompression via the bundled `lazrs` codec. |
 | **PCD** (`.pcd`) | ✅ | ✅ | Point Cloud Library format. ASCII, binary, and `binary_compressed` (LZF) all supported. |
 | **XYZ** (`.xyz`, `.txt`, `.csv`) | ✅ | ✅ | Plain-text positions, with auto-detected column layout for color / normal / intensity columns. |
+| **PTS** (`.pts`) | ✅ | ✅ | Leica Cyclone text format — XYZ with a count header line. Canonical 7-column `x y z intensity r g b` layout, plus shorter variants auto-detected. |
 
 ## Installation
 
@@ -69,6 +70,12 @@ Plain text with no header. Column layout is inferred:
 
 Comma vs whitespace separator is auto-detected; `#`-prefixed comment lines are skipped.
 
+### PTS
+
+`File > Import > PTS Point Cloud (.pts)` · `File > Export > PTS Point Cloud (.pts)`
+
+Leica Cyclone text format. Structurally XYZ with a single integer count line at the top. The reader auto-detects the column layout from row width: 3 (`x y z`), 4 (`x y z intensity`), 6 (`x y z r g b`), or 7 (`x y z intensity r g b`, Leica canonical). Intensity is normalised to 0–1 on import and scaled back to the 0–2047 Leica integer range on export.
+
 ### Sidebar panel
 
 Press **N** in the 3D Viewport → **Point Cloud** tab. Shows point count and attributes; live radius adjustment works on any selected PointCloud, including ones created by Geometry Nodes or other add-ons.
@@ -109,6 +116,10 @@ The Stanford Polygon Format — one of the oldest 3D file formats. Simple ASCII 
 ### XYZ
 
 Not a strict standard — most software writes `x y z` per line, optionally with intensity / RGB / normals columns. The importer infers layout from the column count.
+
+### PTS
+
+Leica Cyclone's plain-text format. Identical in spirit to XYZ but with a single integer count line at the top, and a conventional 7-column layout: `x y z intensity r g b`. Common output from terrestrial laser scanners; less common in airborne LiDAR pipelines.
 
 ## Source
 
