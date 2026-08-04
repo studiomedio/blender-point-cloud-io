@@ -52,7 +52,7 @@ ASPRS LAS is the dominant format for **airborne and terrestrial LiDAR** data. Ea
 
 The required Python wheels (`pye57`, `pyquaternion`, `laspy`, `lazrs`) are bundled with the extension — no internet needed at install time. Both Python 3.13 and 3.14 builds are included, so distribution-packaged Blender linked against a newer system Python installs cleanly too.
 
-E57 is the one format with a platform gap: upstream `pye57` publishes no macOS x86_64 or Linux aarch64 wheel, so on Intel Mac and ARM Linux every other format works but E57 does not.
+Supported platforms are macOS (Apple Silicon and Intel), Linux x86_64, and Windows x64. E57 is the one format with a gap: upstream `pye57` publishes no macOS x86_64 wheel, so on Intel Mac every other format works but E57 does not.
 
 ## Installation
 

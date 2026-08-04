@@ -83,7 +83,8 @@ Press **N** in the 3D Viewport → **Point Cloud** tab. Shows point count and at
 ## Limitations
 
 - **E57 export does not write normals.** `pye57`'s writer does not expose the normal extension fields. Imported normals are still preserved as a point attribute inside Blender — they're just not round-tripped back to E57.
-- **E57 is unavailable on Intel Mac and ARM Linux.** Upstream `pye57` publishes wheels for macOS arm64, Linux x86_64, and Windows x86_64 only, so on those two platforms the E57 importer/exporter cannot load and you would need to build `pye57` from source. Every other format — including LAS/LAZ, which uses `lazrs` — works there, since `lazrs` ships macOS x86_64 and Linux aarch64 wheels.
+- **E57 is unavailable on Intel Mac.** Upstream `pye57` publishes wheels for macOS arm64, Linux x86_64, and Windows x86_64 only, so on macOS x86_64 the E57 importer/exporter cannot load and you would need to build `pye57` from source. Every other format — including LAS/LAZ, which uses `lazrs` — works there.
+- **ARM Linux is not supported.** The Blender Extensions platform does not recognise `linux-arm64` as a hostable platform, so no ARM Linux build is published.
 - **LAS scale fixed at 1 mm.** Positions are quantised to millimetre precision on export. For country-scale or astronomical-coordinate clouds this could clip; configurable scale is on the roadmap.
 - **NaN-positioned points are dropped on import.** This is intentional — PCL writes NaN coordinates for invalid depth-camera pixels and these would otherwise poison the bounding-box / radius computation.
 

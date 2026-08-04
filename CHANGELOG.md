@@ -17,13 +17,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ### Changed
 
-- **`lazrs` bumped 0.8.1 → 0.8.2.** 0.8.1 published no `cp313` Linux aarch64 wheel; 0.8.2 does, which is what makes LAZ on ARM Linux possible.
-- **Wider platform coverage for LAS/LAZ.** `lazrs` wheels for **macOS x86_64** and **Linux aarch64** are now bundled, so LAZ read/write works on Intel Mac and ARM Linux for the first time.
-- **Releases are now split per platform.** Doubling the wheel count took a universal build from 22 MB to 48 MB, so the manifest declares `platforms` and releases are built with `blender --command extension build --split-platforms`. Each download now carries only its own wheels — 6.2 MB (macOS arm64), 3.2 MB (Windows x64), 1.2 MB (macOS x64), 1.3 MB (Linux arm64), 34.2 MB (Linux x64).
+- **`lazrs` bumped 0.8.1 → 0.8.2** — routine update to the latest patch release.
+- **LAS/LAZ now works on Intel Mac.** A `lazrs` wheel for **macOS x86_64** is now bundled, so LAZ read/write is available on Intel Mac for the first time.
+- **Releases are now split per platform.** Doubling the wheel count took a universal build from 22 MB to 48 MB, so the manifest declares `platforms` and releases are built with `blender --command extension build --split-platforms`. Each download now carries only its own wheels — 6.2 MB (macOS arm64), 3.2 MB (Windows x64), 1.2 MB (macOS x64), 34.2 MB (Linux x64).
 
 ### Known limitations
 
-- **E57 remains unavailable on Intel Mac and ARM Linux.** Upstream `pye57` publishes wheels for macOS arm64, Linux x86_64, and Windows x86_64 only — there is nothing to bundle for the other two platforms. All other formats work there.
+- **E57 is unavailable on Intel Mac.** Upstream `pye57` publishes wheels for macOS arm64, Linux x86_64, and Windows x86_64 only, so there is nothing to bundle for macOS x86_64. Every other format works there.
+- **ARM Linux is not supported.** The Blender Extensions platform hosts only `windows-x64`, `windows-arm64`, `macos-x64`, `macos-arm64` and `linux-x64` — `linux-arm64` is not a platform it recognises, and a manifest naming it is rejected at upload. The `lazrs` aarch64 wheels were therefore dropped rather than shipped as dead weight.
 
 ## [0.5.1] – 2026-06-01
 

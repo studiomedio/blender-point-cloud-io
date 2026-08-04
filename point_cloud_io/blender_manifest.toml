@@ -13,7 +13,7 @@ license = ["SPDX:GPL-3.0-or-later"]
 copyright = ["2026 Sławomir Sobczak", "2026 Studio Medio"]
 website = "https://github.com/studiomedio/blender-point-cloud-io"
 tags = ["Import-Export"]
-platforms = ["macos-arm64", "macos-x64", "linux-x64", "linux-arm64", "windows-x64"]
+platforms = ["macos-arm64", "macos-x64", "linux-x64", "windows-x64"]
 
 wheels = [
     "./wheels/pyquaternion-0.9.9-py3-none-any.whl",
@@ -26,12 +26,10 @@ wheels = [
     "./wheels/laspy-2.7.0-py3-none-any.whl",
     "./wheels/lazrs-0.8.2-cp313-cp313-macosx_10_12_x86_64.whl",
     "./wheels/lazrs-0.8.2-cp313-cp313-macosx_11_0_arm64.whl",
-    "./wheels/lazrs-0.8.2-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
     "./wheels/lazrs-0.8.2-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
     "./wheels/lazrs-0.8.2-cp313-cp313-win_amd64.whl",
     "./wheels/lazrs-0.8.2-cp314-cp314-macosx_10_12_x86_64.whl",
     "./wheels/lazrs-0.8.2-cp314-cp314-macosx_11_0_arm64.whl",
-    "./wheels/lazrs-0.8.2-cp314-cp314-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
     "./wheels/lazrs-0.8.2-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
     "./wheels/lazrs-0.8.2-cp314-cp314-win_amd64.whl",
 ]
