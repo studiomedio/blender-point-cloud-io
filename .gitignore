@@ -7,6 +7,7 @@ venv/
 
 # Built extension ZIP
 point_cloud_io*.zip
+dist/
 
 # Editor directories and files
 .vscode/*
