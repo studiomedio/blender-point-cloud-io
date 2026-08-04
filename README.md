@@ -48,9 +48,11 @@ ASPRS LAS is the dominant format for **airborne and terrestrial LiDAR** data. Ea
 
 ## Requirements
 
-- **Blender 5.1** or newer (Python 3.13)
+- **Blender 5.1** or newer (Python 3.13 or 3.14)
 
-The required Python wheels (`pye57`, `pyquaternion`) are bundled with the extension — no internet needed at install time.
+The required Python wheels (`pye57`, `pyquaternion`, `laspy`, `lazrs`) are bundled with the extension — no internet needed at install time. Both Python 3.13 and 3.14 builds are included, so distribution-packaged Blender linked against a newer system Python installs cleanly too.
+
+E57 is the one format with a platform gap: upstream `pye57` publishes no macOS x86_64 or Linux aarch64 wheel, so on Intel Mac and ARM Linux every other format works but E57 does not.
 
 ## Installation
 
@@ -68,9 +70,10 @@ Use this path if you want to try unreleased changes or work on the extension loc
 1. Build a ZIP from the `point_cloud_io/` directory (or download a release):
 
    ```bash
-   cd point_cloud_io
-   zip -r ../point_cloud_io.zip .
+   blender --command extension build --source-dir point_cloud_io --output-dir .
    ```
+
+   That produces a universal `point_cloud_io-<version>.zip` containing every platform's wheels. Add `--split-platforms` to get one smaller ZIP per platform instead, which is what releases ship.
 
 2. In Blender: `Edit > Preferences > Get Extensions`.
 3. Click the drop-down (top right) → **Install from Disk**.
@@ -226,7 +229,7 @@ point_cloud_io/
 ├── ui/
 │   ├── __init__.py
 │   └── panel.py             # 3D Viewport sidebar (N-panel)
-└── wheels/                  # bundled cp313 wheels (pye57, pyquaternion)
+└── wheels/                  # bundled wheels — cp313 + cp314 (pye57, lazrs), pure-Python (laspy, pyquaternion)
 ```
 
 Adding a new format means dropping `formats/<format>.py` and a matching `operators/import_<format>.py` (or `export_<format>.py`) and wiring it up in `operators/__init__.py`.

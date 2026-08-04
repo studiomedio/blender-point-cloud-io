@@ -23,7 +23,7 @@ In Blender, open `Edit > Preferences > Get Extensions`, search for "Point Cloud 
 - **Auto Point Radius** — picks a sensible point radius from the cloud's bounding box and density, on by default for every format. Kilometre-scale LiDAR scans are no longer invisible at the default 5 cm radius.
 - **Center on Origin** for georeferenced LiDAR — large LAS/LAZ files in UTM or State Plane coordinates are millions of metres from origin; the importer subtracts the data minimum so the cloud lands in float32-precision range. The offset is stashed on the object as `las_origin_offset` and added back automatically on export, preserving the original CRS.
 - **Sidebar panel (N-key)** — shows point count, present attributes, and a **logarithmic point-radius slider** plus `÷10 / ÷2 / Auto / ×2 / ×10` quick buttons. Works on any active PointCloud, not only freshly imported ones.
-- **Bundled dependencies** — `pye57`, `pyquaternion`, `laspy`, and `lazrs` ship with the extension as Python 3.13 wheels for macOS arm64, Linux x86_64, and Windows x86_64. PCD and XYZ are pure Python + numpy — no extra wheels. No internet or manual pip step at install time.
+- **Bundled dependencies** — `pye57`, `pyquaternion`, `laspy`, and `lazrs` ship with the extension. `laspy` and `pyquaternion` are pure Python; `pye57` and `lazrs` ship as both Python 3.13 and Python 3.14 wheels, so the extension installs on official Blender builds and on distribution-packaged builds linked against a newer system Python. PCD, XYZ, PTS and PLY are pure Python + numpy — no extra wheels. No internet or manual pip step at install time.
 
 ## Usage
 
@@ -83,7 +83,7 @@ Press **N** in the 3D Viewport → **Point Cloud** tab. Shows point count and at
 ## Limitations
 
 - **E57 export does not write normals.** `pye57`'s writer does not expose the normal extension fields. Imported normals are still preserved as a point attribute inside Blender — they're just not round-tripped back to E57.
-- **Intel Mac is not supported** out of the box. `pye57` and `lazrs` ship cp313 wheels for macOS arm64, Linux x86_64, and Windows x86_64 only. Intel Mac users would need to build the wheels from source.
+- **E57 is unavailable on Intel Mac and ARM Linux.** Upstream `pye57` publishes wheels for macOS arm64, Linux x86_64, and Windows x86_64 only, so on those two platforms the E57 importer/exporter cannot load and you would need to build `pye57` from source. Every other format — including LAS/LAZ, which uses `lazrs` — works there, since `lazrs` ships macOS x86_64 and Linux aarch64 wheels.
 - **LAS scale fixed at 1 mm.** Positions are quantised to millimetre precision on export. For country-scale or astronomical-coordinate clouds this could clip; configurable scale is on the roadmap.
 - **NaN-positioned points are dropped on import.** This is intentional — PCL writes NaN coordinates for invalid depth-camera pixels and these would otherwise poison the bounding-box / radius computation.
 

@@ -9,6 +9,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 - **Zenodo DOI** — releases are now archived on Zenodo and the project has a citation DOI ([10.5281/zenodo.20488833](https://doi.org/10.5281/zenodo.20488833)). A DOI badge linking to the concept DOI is shown at the top of the README.
 
+## [0.5.2] – 2026-08-04
+
+### Fixed
+
+- **Python 3.14 compatibility.** The extension previously bundled `cp313` wheels only, so Blender builds running Python 3.14 — distribution packages and self-built Blender linked against a newer system Python, rather than the official builds, which ship 3.13 — rejected the extension at install time with *"This Python version (3.14) isn't compatible with (3.13)"*. `pye57` and `lazrs` now ship `cp314` wheels alongside the `cp313` ones; Blender selects the matching tag at install time. Official Blender 5.1.x builds are unaffected either way.
+
+### Changed
+
+- **`lazrs` bumped 0.8.1 → 0.8.2.** 0.8.1 published no `cp313` Linux aarch64 wheel; 0.8.2 does, which is what makes LAZ on ARM Linux possible.
+- **Wider platform coverage for LAS/LAZ.** `lazrs` wheels for **macOS x86_64** and **Linux aarch64** are now bundled, so LAZ read/write works on Intel Mac and ARM Linux for the first time.
+- **Releases are now split per platform.** Doubling the wheel count took a universal build from 22 MB to 48 MB, so the manifest declares `platforms` and releases are built with `blender --command extension build --split-platforms`. Each download now carries only its own wheels — 6.2 MB (macOS arm64), 3.2 MB (Windows x64), 1.2 MB (macOS x64), 1.3 MB (Linux arm64), 34.2 MB (Linux x64).
+
+### Known limitations
+
+- **E57 remains unavailable on Intel Mac and ARM Linux.** Upstream `pye57` publishes wheels for macOS arm64, Linux x86_64, and Windows x86_64 only — there is nothing to bundle for the other two platforms. All other formats work there.
+
 ## [0.5.1] – 2026-06-01
 
 ### Fixed
