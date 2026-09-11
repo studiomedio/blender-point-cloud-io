@@ -1,4 +1,4 @@
-Import and export point cloud files in **six formats** — E57, PLY, LAS/LAZ, PCD, XYZ, and PTS — directly into Blender's native **PointCloud** object. Colors, normals, intensity, classification, and per-point custom fields land as point attributes you can drive with Geometry Nodes or shaders.
+Import and export point cloud files in **six formats** — E57, PLY, LAS/LAZ, PCD, XYZ, and PTS — directly into Blender's native **PointCloud** object. Colors, normals, intensity, classification, and per-point custom fields land as point attributes you can drive with Geometry Nodes or shaders, and on export you choose which attribute feeds each channel.
 
 ## Supported formats
 
@@ -19,13 +19,17 @@ In Blender, open `Edit > Preferences > Get Extensions`, search for "Point Cloud 
 
 - **Native PointCloud objects** — uses Blender's optimised point cloud geometry, not a mesh fallback. Handles million-point datasets smoothly.
 - **All per-point attributes preserved** — RGB, normals, intensity, ASPRS classification (uint8 → INT attribute), LiDAR return numbers, and any custom scalar fields from the file land as point attributes you can read in Geometry Nodes or shaders.
+- **Pick the source attribute for every export channel** — a **Source Attributes** dropdown per channel (Color, Intensity, and for LAS also Classification and return info) lets you point each one at any attribute on the cloud. Detection is automatic by default and matches names ignoring case and punctuation, so clouds built in Geometry Nodes or written by other tools — CloudCompare's `scalar_Intensity`, a PLY writer's `Col` — export correctly without renaming anything.
+- **Nothing is dropped silently** — if an attribute will not make it into the file, because the format cannot carry it or its name matched no channel, the export dialog lists it before you click Export and reports it again afterwards.
 - **Auto-generated material** — a Principled BSDF wired to the imported color or normal attribute, so points display correctly in Material Preview and Rendered shading right after import.
 - **Auto Point Radius** — picks a sensible point radius from the cloud's bounding box and density, on by default for every format. Kilometre-scale LiDAR scans are no longer invisible at the default 5 cm radius.
 - **Center on Origin** for georeferenced LiDAR — large LAS/LAZ files in UTM or State Plane coordinates are millions of metres from origin; the importer subtracts the data minimum so the cloud lands in float32-precision range. The offset is stashed on the object as `las_origin_offset` and added back automatically on export, preserving the original CRS.
-- **Sidebar panel (N-key)** — shows point count, present attributes, and a **logarithmic point-radius slider** plus `÷10 / ÷2 / Auto / ×2 / ×10` quick buttons. Works on any active PointCloud, not only freshly imported ones.
+- **Sidebar panel (N-key)** — lists point count and every attribute on the cloud, plus a **logarithmic point-radius slider** plus `÷10 / ÷2 / Auto / ×2 / ×10` quick buttons. Works on any active PointCloud, not only freshly imported ones.
 - **Bundled dependencies** — `pye57`, `pyquaternion`, `laspy`, and `lazrs` ship with the extension. `laspy` and `pyquaternion` are pure Python; `pye57` and `lazrs` ship as both Python 3.13 and Python 3.14 wheels, so the extension installs on official Blender builds and on distribution-packaged builds linked against a newer system Python. PCD, XYZ, PTS and PLY are pure Python + numpy — no extra wheels. No internet or manual pip step at install time.
 
 ## Usage
+
+Every exporter lets you choose which attribute feeds each channel it writes — see **Choosing export attributes** below.
 
 ### E57
 
@@ -38,6 +42,8 @@ Each scan in a multi-scan E57 becomes its own PointCloud object, or merge them a
 `File > Import > PLY Point Cloud (.ply)` · `File > Export > PLY Point Cloud (.ply)`
 
 Reads positions, colors (auto-detects 0–255 vs 0–1 ranges), normals, and every other per-vertex scalar property as point attributes. ASCII and binary (little- and big-endian) both supported. **Distinct from Blender's built-in `Stanford PLY` importer**, which produces a mesh — ours produces a PointCloud, dramatically faster for large clouds.
+
+Export writes every point attribute, not just the recognised ones: scalars keep their own name, and vector or color attributes that no channel claimed become `<name>_x/_y/_z` and `<name>_r/_g/_b` columns.
 
 ### LAS / LAZ
 
@@ -76,15 +82,28 @@ Comma vs whitespace separator is auto-detected; `#`-prefixed comment lines are s
 
 Leica Cyclone text format. Structurally XYZ with a single integer count line at the top. The reader auto-detects the column layout from row width: 3 (`x y z`), 4 (`x y z intensity`), 6 (`x y z r g b`), or 7 (`x y z intensity r g b`, Leica canonical). Intensity is normalised to 0–1 on import and scaled back to the 0–2047 Leica integer range on export.
 
+### Choosing export attributes
+
+Every export dialog has a **Source Attributes** section with one dropdown per channel the format writes — Color and Intensity, plus Classification, Return Number and Number of Returns for LAS/LAZ. Each dropdown offers:
+
+- **Auto** (default) — detect by name. Matching ignores case and punctuation, so `intensity`, `Intensity` and `scalar_Intensity` all resolve, along with common aliases from other tools (`Col`, `rgb`, `diffuse_color`, `reflectance`, `class`, and more).
+- **None** — leave that channel out of the file.
+- **Any attribute name** — use exactly that attribute, including ones created by Geometry Nodes when **Apply Modifiers** is on.
+
+Only attributes whose data type fits are offered: `FLOAT_COLOR`, `BYTE_COLOR` or 3-component `FLOAT_VECTOR` for color, `FLOAT_VECTOR` for normals, and `FLOAT` / `INT` / `BOOLEAN` for the scalar channels, converted as needed.
+
+Anything that will not reach the file is listed in the dialog before you export and reported again afterwards. Deliberate omissions — a channel set to **None**, or a column checkbox switched off — stay quiet.
+
 ### Sidebar panel
 
-Press **N** in the 3D Viewport → **Point Cloud** tab. Shows point count and attributes; live radius adjustment works on any selected PointCloud, including ones created by Geometry Nodes or other add-ons.
+Press **N** in the 3D Viewport → **Point Cloud** tab. Lists point count and every attribute on the cloud, which is the quickest way to check names before an export; live radius adjustment works on any selected PointCloud, including ones created by Geometry Nodes or other add-ons.
 
 ## Limitations
 
 - **E57 export does not write normals.** `pye57`'s writer does not expose the normal extension fields. Imported normals are still preserved as a point attribute inside Blender — they're just not round-tripped back to E57.
 - **E57 is unavailable on Intel Mac.** Upstream `pye57` publishes wheels for macOS arm64, Linux x86_64, and Windows x86_64 only, so on macOS x86_64 the E57 importer/exporter cannot load and you would need to build `pye57` from source. Every other format — including LAS/LAZ, which uses `lazrs` — works there.
 - **ARM Linux is not supported.** The Blender Extensions platform does not recognise `linux-arm64` as a hostable platform, so no ARM Linux build is published.
+- **Intensity is assumed to be 0–1 on export.** The importers normalise intensity to that range and the exporters scale back out of it (LAS to 16-bit, PTS to the 0–2047 Leica range). If you map a channel holding raw scanner counts instead, check the output range.
 - **LAS scale fixed at 1 mm.** Positions are quantised to millimetre precision on export. For country-scale or astronomical-coordinate clouds this could clip; configurable scale is on the roadmap.
 - **NaN-positioned points are dropped on import.** This is intentional — PCL writes NaN coordinates for invalid depth-camera pixels and these would otherwise poison the bounding-box / radius computation.
 
