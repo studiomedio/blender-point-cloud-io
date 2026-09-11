@@ -20,6 +20,7 @@ import os
 import bpy
 import numpy as np
 
+from ._attrs import AUTO, resolve
 from ._common import (
     attach_material,
     build_point_cloud,
@@ -139,15 +140,21 @@ def export_xyz_file(
     write_colors,
     write_normals,
     write_intensity,
+    overrides=None,
 ):
     """Write a single XYZ file from one or more PointCloud objects.
 
     Column order: x y z [intensity] [r g b] [nx ny nz]. Extra columns are added
     only when the underlying attribute is actually present on every object —
     otherwise the file would be ragged.
+
+    `overrides` maps attribute roles ('color', 'normal', 'intensity') to a
+    source attribute name, or to the AUTO / NONE sentinels; see `_attrs`.
     """
     if not objects:
         raise RuntimeError("No PointCloud objects to export.")
+
+    overrides = overrides or {}
 
     positions_list, colors_list, normals_list, intensity_list = [], [], [], []
     have_color = write_colors
@@ -165,21 +172,22 @@ def export_xyz_file(
         positions_list.append(get_positions(obj, count, apply_transforms))
 
         if have_color:
-            c = get_colors_uint8(obj, count)
+            c = get_colors_uint8(obj, count, resolve(obj, 'color', overrides.get('color', AUTO)))
             if c is None:
                 have_color = False
             else:
                 colors_list.append(c)
 
         if have_normal:
-            n = get_normals(obj, count, apply_transforms)
+            n = get_normals(obj, count, apply_transforms,
+                            resolve(obj, 'normal', overrides.get('normal', AUTO)))
             if n is None:
                 have_normal = False
             else:
                 normals_list.append(n)
 
         if have_intensity:
-            i = get_scalar(obj, count, 'intensity')
+            i = get_scalar(obj, count, resolve(obj, 'intensity', overrides.get('intensity', AUTO)))
             if i is None:
                 have_intensity = False
             else:

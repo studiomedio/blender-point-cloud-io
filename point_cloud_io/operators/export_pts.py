@@ -3,9 +3,10 @@ from bpy.props import BoolProperty, StringProperty
 from bpy_extras.io_utils import ExportHelper
 
 from ..formats.pts import export_pts_file
+from ._base import PointCloudExportBase, role_property
 
 
-class EXPORT_OT_pts(bpy.types.Operator, ExportHelper):
+class EXPORT_OT_pts(PointCloudExportBase, bpy.types.Operator, ExportHelper):
     """Export PointCloud objects as a PTS (Leica Cyclone) text file"""
 
     bl_idname = "export_scene.point_cloud_pts"
@@ -14,6 +15,11 @@ class EXPORT_OT_pts(bpy.types.Operator, ExportHelper):
 
     filename_ext = ".pts"
     filter_glob: StringProperty(default="*.pts", options={'HIDDEN'}, maxlen=255)
+
+    attribute_roles = ('intensity', 'color')
+
+    intensity_attribute: role_property('intensity')
+    color_attribute: role_property('color')
 
     selection_only: BoolProperty(
         name="Selection Only",
@@ -41,6 +47,14 @@ class EXPORT_OT_pts(bpy.types.Operator, ExportHelper):
         default=True,
     )
 
+    def enabled_roles(self):
+        return tuple(
+            role for role, on in (
+                ('intensity', self.write_intensity),
+                ('color', self.write_colors),
+            ) if on
+        )
+
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
@@ -50,6 +64,8 @@ class EXPORT_OT_pts(bpy.types.Operator, ExportHelper):
         col.prop(self, "write_intensity")
         col.prop(self, "write_colors")
 
+        self.draw_attribute_roles(layout, context)
+
         col = layout.column(heading="Geometry")
         col.prop(self, "apply_modifiers")
         col.prop(self, "apply_transforms")
@@ -57,32 +73,7 @@ class EXPORT_OT_pts(bpy.types.Operator, ExportHelper):
         col = layout.column()
         col.prop(self, "selection_only")
 
-        skipped = self._skipped_names(context)
-        if skipped:
-            box = layout.box()
-            box.label(
-                text=f"{len(skipped)} non-PointCloud object(s) will be skipped:",
-                icon='ERROR',
-            )
-            for name in skipped[:5]:
-                box.label(text=f"  • {name}")
-            if len(skipped) > 5:
-                box.label(text=f"  ...and {len(skipped) - 5} more")
-
-    def _candidates(self, context):
-        if self.selection_only:
-            return list(context.selected_objects)
-        return list(context.scene.objects)
-
-    def _skipped_names(self, context):
-        return [o.name for o in self._candidates(context) if o.type != 'POINTCLOUD']
-
-    def _resolve_objects(self, context):
-        candidates = [o for o in self._candidates(context) if o.type == 'POINTCLOUD']
-        if not self.apply_modifiers:
-            return candidates
-        depsgraph = context.evaluated_depsgraph_get()
-        return [o.evaluated_get(depsgraph) for o in candidates]
+        self.draw_skipped_objects(layout, context)
 
     def execute(self, context):
         objects = self._resolve_objects(context)
@@ -90,6 +81,7 @@ class EXPORT_OT_pts(bpy.types.Operator, ExportHelper):
             self.report({'WARNING'}, "No PointCloud objects to export.")
             return {'CANCELLED'}
 
+        plan = self.export_plan(objects)
         try:
             total = export_pts_file(
                 objects,
@@ -97,12 +89,14 @@ class EXPORT_OT_pts(bpy.types.Operator, ExportHelper):
                 apply_transforms=self.apply_transforms,
                 write_colors=self.write_colors,
                 write_intensity=self.write_intensity,
+                overrides=self.attribute_overrides(),
             )
         except Exception as err:
             self.report({'ERROR'}, f"PTS export failed: {err}")
             return {'CANCELLED'}
 
         self.report({'INFO'}, f"Exported {total:,} points to {self.filepath}.")
+        self.report_unwritten(plan, "PTS")
         return {'FINISHED'}
 
 

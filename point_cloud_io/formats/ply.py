@@ -11,13 +11,18 @@ Read mapping (PLY -> Blender point attribute):
     everything else -> kept as-is       (FLOAT scalar attribute)
 
 Write mapping (Blender -> PLY):
-    position        -> x, y, z          (float)
-    normal          -> nx, ny, nz       (float)
-    color           -> red, green, blue (uchar 0..255)
-    FLOAT scalar    -> <name>           (float)
-    INT / INT8      -> <name>           (int)
-    BOOLEAN         -> <name>           (uchar)
-    other types are skipped silently for now
+    position        -> x, y, z            (float)
+    normal role     -> nx, ny, nz         (float)
+    color role      -> red, green, blue   (uchar 0..255)
+    FLOAT scalar    -> <name>             (float)
+    INT / INT8      -> <name>             (int)
+    BOOLEAN         -> <name>             (uchar)
+    FLOAT_VECTOR    -> <name>_x/_y/_z     (float)
+    FLOAT2          -> <name>_x/_y        (float)
+    FLOAT_COLOR     -> <name>_r/_g/_b     (uchar 0..255)
+
+Which attribute fills the normal and color roles is resolved by `_attrs` —
+the canonical names by default, an export-dialog override otherwise.
 """
 
 import os
@@ -25,12 +30,15 @@ import os
 import bpy
 import numpy as np
 
+from ._attrs import AUTO, resolve, suppressed_name
 from ._common import (
     attach_material,
     build_point_cloud,
     get_colors_uint8,
+    get_int_scalar,
     get_normals,
     get_positions,
+    get_scalar,
     reset_selection,
 )
 
@@ -290,90 +298,119 @@ def import_ply_file(
 
 
 # Per-object property record:
-#   (ply_name, ply_type, attr_name, sub_index)
+#   (ply_name, ply_type, attr_name, sub_index, kind)
 # attr_name is the Blender attribute; sub_index picks the component (0..n-1)
-# for vector / color attributes, or 0 for scalar attributes.
+# for vector / color attributes, or 0 for scalar attributes. `kind` tells the
+# column reader how to interpret the source — 'position' and 'normal' need the
+# world transform, 'color' needs 0..1 -> 0..255 scaling, 'scalar' is verbatim.
+
+_PLY_VECTOR_AXES = ('x', 'y', 'z')
+_PLY_COLOR_CHANNELS = ('r', 'g', 'b')
 
 
-def _build_writer_properties(obj):
+def _build_writer_properties(obj, overrides=None):
+    overrides = overrides or {}
     attrs = obj.data.attributes
     if 'position' not in attrs:
         return None, "Point cloud has no 'position' attribute."
 
     props = [
-        ('x', 'float', 'position', 0),
-        ('y', 'float', 'position', 1),
-        ('z', 'float', 'position', 2),
+        ('x', 'float', 'position', 0, 'position'),
+        ('y', 'float', 'position', 1, 'position'),
+        ('z', 'float', 'position', 2, 'position'),
     ]
     handled = {'position', 'radius'}
 
-    if 'normal' in attrs:
-        props.extend([
-            ('nx', 'float', 'normal', 0),
-            ('ny', 'float', 'normal', 1),
-            ('nz', 'float', 'normal', 2),
-        ])
-        handled.add('normal')
+    # A role set to None must not reappear as generic per-component columns,
+    # so the attribute it would have used is suppressed outright.
+    for role_key in ('normal', 'color'):
+        omitted = suppressed_name(obj, role_key, overrides.get(role_key, AUTO))
+        if omitted is not None:
+            handled.add(omitted)
 
-    if 'color' in attrs:
+    normal_name = resolve(obj, 'normal', overrides.get('normal', AUTO))
+    if normal_name is not None:
         props.extend([
-            ('red',   'uchar', 'color', 0),
-            ('green', 'uchar', 'color', 1),
-            ('blue',  'uchar', 'color', 2),
+            ('nx', 'float', normal_name, 0, 'normal'),
+            ('ny', 'float', normal_name, 1, 'normal'),
+            ('nz', 'float', normal_name, 2, 'normal'),
         ])
-        handled.add('color')
+        handled.add(normal_name)
+
+    color_name = resolve(obj, 'color', overrides.get('color', AUTO))
+    if color_name is not None:
+        props.extend([
+            ('red',   'uchar', color_name, 0, 'color'),
+            ('green', 'uchar', color_name, 1, 'color'),
+            ('blue',  'uchar', color_name, 2, 'color'),
+        ])
+        handled.add(color_name)
 
     for attr in attrs:
-        if attr.name in handled or attr.domain != 'POINT':
+        if attr.domain != 'POINT' or attr.name in handled or attr.name.startswith('.'):
             continue
         dt = attr.data_type
         name = attr.name
         if dt == 'FLOAT':
-            props.append((name, 'float', name, 0))
+            props.append((name, 'float', name, 0, 'scalar'))
         elif dt in ('INT', 'INT8'):
-            props.append((name, 'int', name, 0))
+            props.append((name, 'int', name, 0, 'scalar'))
         elif dt == 'BOOLEAN':
-            props.append((name, 'uchar', name, 0))
+            props.append((name, 'uchar', name, 0, 'scalar'))
+        # Multi-component attributes that no role claimed still round-trip if
+        # each component gets its own column, which is what other PLY writers
+        # do. Dropping them is what made unrecognised names disappear.
+        elif dt == 'FLOAT_VECTOR':
+            props.extend(
+                (f"{name}_{axis}", 'float', name, index, 'vector3')
+                for index, axis in enumerate(_PLY_VECTOR_AXES)
+            )
+        elif dt == 'FLOAT2':
+            props.extend(
+                (f"{name}_{axis}", 'float', name, index, 'vector2')
+                for index, axis in enumerate(_PLY_VECTOR_AXES[:2])
+            )
+        elif dt in ('FLOAT_COLOR', 'BYTE_COLOR'):
+            props.extend(
+                (f"{name}_{channel}", 'uchar', name, index, 'color')
+                for index, channel in enumerate(_PLY_COLOR_CHANNELS)
+            )
 
     return props, None
 
 
-def _read_attr_column(obj, count, attr_name, sub_index, ply_type, apply_transforms):
+def _read_attr_column(obj, count, attr_name, sub_index, ply_type, kind, apply_transforms):
     """Pull one PLY column from the object's attributes (with transforms)."""
-    if attr_name == 'position':
+    np_type = _PLY_TO_NUMPY[ply_type]
+    missing = np.zeros(count, dtype=np_type)
+
+    if kind == 'position':
         positions = get_positions(obj, count, apply_transforms)
-        return positions[:, sub_index].astype(_PLY_TO_NUMPY[ply_type])
+        return positions[:, sub_index].astype(np_type)
 
-    if attr_name == 'normal':
-        normals = get_normals(obj, count, apply_transforms)
-        if normals is None:
-            return np.zeros(count, dtype=_PLY_TO_NUMPY[ply_type])
-        return normals[:, sub_index].astype(_PLY_TO_NUMPY[ply_type])
+    if kind == 'normal':
+        normals = get_normals(obj, count, apply_transforms, attr_name)
+        return missing if normals is None else normals[:, sub_index].astype(np_type)
 
-    if attr_name == 'color':
-        colors = get_colors_uint8(obj, count)
-        if colors is None:
-            return np.zeros(count, dtype=_PLY_TO_NUMPY[ply_type])
-        return colors[:, sub_index]
+    if kind == 'color':
+        colors = get_colors_uint8(obj, count, attr_name)
+        return missing if colors is None else colors[:, sub_index].astype(np_type)
 
-    attr = obj.data.attributes.get(attr_name)
-    if attr is None:
-        return np.zeros(count, dtype=_PLY_TO_NUMPY[ply_type])
+    if kind in ('vector3', 'vector2'):
+        attr = obj.data.attributes.get(attr_name)
+        if attr is None:
+            return missing
+        width = 3 if kind == 'vector3' else 2
+        arr = np.empty(count * width, dtype=np.float32)
+        attr.data.foreach_get('vector', arr)
+        return arr.reshape(-1, width)[:, sub_index].astype(np_type)
 
-    dt = attr.data_type
-    if dt == 'FLOAT':
-        out = np.empty(count, dtype=np.float32)
-        attr.data.foreach_get('value', out)
-    elif dt in ('INT', 'INT8'):
-        out = np.empty(count, dtype=np.int32)
-        attr.data.foreach_get('value', out)
-    elif dt == 'BOOLEAN':
-        out = np.empty(count, dtype=np.bool_)
-        attr.data.foreach_get('value', out)
-        out = out.astype(np.uint8)
-    else:
-        out = np.zeros(count, dtype=_PLY_TO_NUMPY[ply_type])
-    return out.astype(_PLY_TO_NUMPY[ply_type])
+    values = (
+        get_scalar(obj, count, attr_name)
+        if ply_type in ('float', 'double')
+        else get_int_scalar(obj, count, attr_name)
+    )
+    return missing if values is None else values.astype(np_type)
 
 
 def export_ply_file(
@@ -382,6 +419,7 @@ def export_ply_file(
     *,
     use_ascii,
     apply_transforms,
+    overrides=None,
 ):
     """Write a list of PointCloud objects as a single PLY file.
 
@@ -389,12 +427,16 @@ def export_ply_file(
     of the first object determines the PLY columns; subsequent objects must
     share the same attribute set or missing fields will be zero-filled.
 
+    `overrides` maps attribute roles ('color', 'normal') to a source attribute
+    name, or to the AUTO / NONE sentinels; see `_attrs`. Attributes no role
+    claims are still written through under their own name.
+
     Returns the total number of points written.
     """
     if not objects:
         raise RuntimeError("No PointCloud objects to export.")
 
-    properties, error = _build_writer_properties(objects[0])
+    properties, error = _build_writer_properties(objects[0], overrides)
     if error:
         raise RuntimeError(error)
 
@@ -417,13 +459,13 @@ def export_ply_file(
         write("ply\n")
         write(f"format {'ascii' if use_ascii else 'binary_little_endian'} 1.0\n")
         write(f"element vertex {total_count}\n")
-        for ply_name, ply_type, _, _ in properties:
+        for ply_name, ply_type, _, _, _ in properties:
             write(f"property {ply_type} {ply_name}\n")
         write("end_header\n")
 
         binary_dtype = np.dtype([
             (ply_name, '<' + _PLY_TO_NUMPY[ply_type])
-            for ply_name, ply_type, _, _ in properties
+            for ply_name, ply_type, _, _, _ in properties
         ])
 
         for obj in objects:
@@ -434,13 +476,15 @@ def export_ply_file(
                 continue
 
             columns = [
-                _read_attr_column(obj, count, attr_name, sub_index, ply_type, apply_transforms)
-                for _, ply_type, attr_name, sub_index in properties
+                _read_attr_column(
+                    obj, count, attr_name, sub_index, ply_type, kind, apply_transforms
+                )
+                for _, ply_type, attr_name, sub_index, kind in properties
             ]
 
             if use_ascii:
                 fmts = []
-                for _, ply_type, _, _ in properties:
+                for _, ply_type, _, _, _ in properties:
                     if ply_type == 'float':
                         fmts.append('%.6f')
                     else:
@@ -448,7 +492,7 @@ def export_ply_file(
                 np.savetxt(out, np.column_stack(columns), fmt=' '.join(fmts))
             else:
                 structured = np.empty(count, dtype=binary_dtype)
-                for (ply_name, _, _, _), col in zip(properties, columns):
+                for (ply_name, _, _, _, _), col in zip(properties, columns):
                     structured[ply_name] = col
                 out.write(structured.tobytes())
 

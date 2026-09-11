@@ -3,6 +3,7 @@ import os
 import bpy
 import numpy as np
 
+from ._attrs import AUTO, resolve
 from ._common import (
     attach_material,
     build_point_cloud,
@@ -139,17 +140,23 @@ def export_e57_file(
     export_colors,
     export_intensity,
     apply_transforms,
+    overrides=None,
 ):
     """Write a list of PointCloud objects as scans in an E57 file.
 
     Returns the total number of points written. Each PointCloud becomes one
     E57 scan. pye57's writer does not expose a normals field, so normals are
     not exported.
+
+    `overrides` maps attribute roles ('color', 'intensity') to a source
+    attribute name, or to the AUTO / NONE sentinels; see `_attrs`.
     """
     import pye57
 
     if not objects:
         raise RuntimeError("No PointCloud objects to export.")
+
+    overrides = overrides or {}
 
     writer = pye57.E57(filepath, mode='w')
     total_points = 0
@@ -170,14 +177,14 @@ def export_e57_file(
         }
 
         if export_colors:
-            colors = get_colors_uint8(obj, count)
+            colors = get_colors_uint8(obj, count, resolve(obj, 'color', overrides.get('color', AUTO)))
             if colors is not None:
                 data['colorRed'] = np.ascontiguousarray(colors[:, 0])
                 data['colorGreen'] = np.ascontiguousarray(colors[:, 1])
                 data['colorBlue'] = np.ascontiguousarray(colors[:, 2])
 
         if export_intensity:
-            intensity = get_scalar(obj, count, 'intensity')
+            intensity = get_scalar(obj, count, resolve(obj, 'intensity', overrides.get('intensity', AUTO)))
             if intensity is not None:
                 data['intensity'] = intensity
 

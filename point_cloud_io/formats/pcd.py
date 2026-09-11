@@ -28,6 +28,7 @@ import struct
 import bpy
 import numpy as np
 
+from ._attrs import AUTO, resolve
 from ._common import (
     attach_material,
     build_point_cloud,
@@ -337,6 +338,7 @@ def export_pcd_file(
     *,
     mode,
     apply_transforms,
+    overrides=None,
 ):
     """Write a single PCD from one or more PointCloud objects.
 
@@ -345,12 +347,17 @@ def export_pcd_file(
     Multiple selected objects are concatenated into a single unordered cloud
     (HEIGHT = 1). PCD is a flat single-cloud format; there's no per-scan slot.
 
+    `overrides` maps attribute roles ('color', 'normal', 'intensity') to a
+    source attribute name, or to the AUTO / NONE sentinels; see `_attrs`.
+
     Returns the total number of points written.
     """
     if mode not in ('ascii', 'binary', 'binary_compressed'):
         raise ValueError(f"Unknown PCD write mode: {mode!r}")
     if not objects:
         raise RuntimeError("No PointCloud objects to export.")
+
+    overrides = overrides or {}
 
     positions_list, colors_list, normals_list, intensity_list = [], [], [], []
     have_color = True
@@ -367,19 +374,20 @@ def export_pcd_file(
 
         positions_list.append(get_positions(obj, count, apply_transforms))
 
-        colors = get_colors_uint8(obj, count)
+        colors = get_colors_uint8(obj, count, resolve(obj, 'color', overrides.get('color', AUTO)))
         if colors is None:
             have_color = False
         else:
             colors_list.append(colors)
 
-        normals = get_normals(obj, count, apply_transforms)
+        normals = get_normals(obj, count, apply_transforms,
+                              resolve(obj, 'normal', overrides.get('normal', AUTO)))
         if normals is None:
             have_normal = False
         else:
             normals_list.append(normals)
 
-        intensity = get_scalar(obj, count, 'intensity')
+        intensity = get_scalar(obj, count, resolve(obj, 'intensity', overrides.get('intensity', AUTO)))
         if intensity is None:
             have_intensity = False
         else:

@@ -5,9 +5,10 @@ from bpy.props import BoolProperty, StringProperty
 from bpy_extras.io_utils import ExportHelper
 
 from ..formats.las import export_las_file
+from ._base import PointCloudExportBase, role_property
 
 
-class EXPORT_OT_las(bpy.types.Operator, ExportHelper):
+class EXPORT_OT_las(PointCloudExportBase, bpy.types.Operator, ExportHelper):
     """Export PointCloud objects as a LAS or LAZ file"""
 
     bl_idname = "export_scene.point_cloud_las"
@@ -16,6 +17,16 @@ class EXPORT_OT_las(bpy.types.Operator, ExportHelper):
 
     filename_ext = ".las"
     filter_glob: StringProperty(default="*.las;*.laz", options={'HIDDEN'}, maxlen=255)
+
+    attribute_roles = (
+        'color', 'intensity', 'classification', 'return_number', 'number_of_returns',
+    )
+
+    color_attribute: role_property('color')
+    intensity_attribute: role_property('intensity')
+    classification_attribute: role_property('classification')
+    return_number_attribute: role_property('return_number')
+    number_of_returns_attribute: role_property('number_of_returns')
 
     use_laz: BoolProperty(
         name="Compress (LAZ)",
@@ -46,6 +57,8 @@ class EXPORT_OT_las(bpy.types.Operator, ExportHelper):
         col = layout.column(heading="Format")
         col.prop(self, "use_laz")
 
+        self.draw_attribute_roles(layout, context)
+
         col = layout.column(heading="Geometry")
         col.prop(self, "apply_modifiers")
         col.prop(self, "apply_transforms")
@@ -53,32 +66,7 @@ class EXPORT_OT_las(bpy.types.Operator, ExportHelper):
         col = layout.column()
         col.prop(self, "selection_only")
 
-        skipped = self._skipped_names(context)
-        if skipped:
-            box = layout.box()
-            box.label(
-                text=f"{len(skipped)} non-PointCloud object(s) will be skipped:",
-                icon='ERROR',
-            )
-            for name in skipped[:5]:
-                box.label(text=f"  • {name}")
-            if len(skipped) > 5:
-                box.label(text=f"  ...and {len(skipped) - 5} more")
-
-    def _candidates(self, context):
-        if self.selection_only:
-            return list(context.selected_objects)
-        return list(context.scene.objects)
-
-    def _skipped_names(self, context):
-        return [o.name for o in self._candidates(context) if o.type != 'POINTCLOUD']
-
-    def _resolve_objects(self, context):
-        candidates = [o for o in self._candidates(context) if o.type == 'POINTCLOUD']
-        if not self.apply_modifiers:
-            return candidates
-        depsgraph = context.evaluated_depsgraph_get()
-        return [o.evaluated_get(depsgraph) for o in candidates]
+        self.draw_skipped_objects(layout, context)
 
     def _final_filepath(self):
         base, ext = os.path.splitext(self.filepath)
@@ -93,17 +81,20 @@ class EXPORT_OT_las(bpy.types.Operator, ExportHelper):
             return {'CANCELLED'}
 
         target = self._final_filepath()
+        plan = self.export_plan(objects)
         try:
             total = export_las_file(
                 objects,
                 target,
                 apply_transforms=self.apply_transforms,
+                overrides=self.attribute_overrides(),
             )
         except Exception as err:
             self.report({'ERROR'}, f"LAS export failed: {err}")
             return {'CANCELLED'}
 
         self.report({'INFO'}, f"Exported {total:,} points to {target}.")
+        self.report_unwritten(plan, "LAS")
         return {'FINISHED'}
 
 

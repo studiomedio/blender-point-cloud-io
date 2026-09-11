@@ -14,10 +14,12 @@ import os
 import bpy
 import numpy as np
 
+from ._attrs import AUTO, resolve
 from ._common import (
     attach_material,
     build_point_cloud,
     get_colors_uint8,
+    get_int_scalar,
     get_positions,
     get_scalar,
     reset_selection,
@@ -102,7 +104,7 @@ def import_las_file(
     return [pc]
 
 
-def _gather_export_data(objects, apply_transforms):
+def _gather_export_data(objects, apply_transforms, overrides):
     """Concatenate all selected PointClouds into single-cloud LAS arrays."""
     positions_list = []
     colors_list = []
@@ -133,34 +135,40 @@ def _gather_export_data(objects, apply_transforms):
             positions = positions + np.asarray(offset, dtype=np.float64)
         positions_list.append(positions)
 
-        colors = get_colors_uint8(obj, count)
+        colors = get_colors_uint8(obj, count, resolve(obj, 'color', overrides.get('color', AUTO)))
         if colors is None:
             have_color = False
         else:
             colors_list.append(colors)
 
-        intensity = get_scalar(obj, count, 'intensity')
+        intensity = get_scalar(obj, count, resolve(obj, 'intensity', overrides.get('intensity', AUTO)))
         if intensity is None:
             have_intensity = False
         else:
             intensity_list.append(intensity)
 
-        if 'classification' in attrs:
-            arr = np.empty(count, dtype=np.int32)
-            attrs['classification'].data.foreach_get('value', arr)
-            classification_list.append(arr)
-        else:
+        classification = get_int_scalar(
+            obj, count, resolve(obj, 'classification', overrides.get('classification', AUTO))
+        )
+        if classification is None:
             have_classification = False
+        else:
+            classification_list.append(classification)
 
-        if 'return_number' in attrs and 'number_of_returns' in attrs:
-            rn = np.empty(count, dtype=np.int32)
-            attrs['return_number'].data.foreach_get('value', rn)
-            nr = np.empty(count, dtype=np.int32)
-            attrs['number_of_returns'].data.foreach_get('value', nr)
+        rn = get_int_scalar(
+            obj, count, resolve(obj, 'return_number', overrides.get('return_number', AUTO))
+        )
+        nr = get_int_scalar(
+            obj, count,
+            resolve(obj, 'number_of_returns', overrides.get('number_of_returns', AUTO)),
+        )
+        # LAS stores both halves of "return R of N" in one bitfield, so a file
+        # carrying only one of them would be meaningless.
+        if rn is None or nr is None:
+            have_return_info = False
+        else:
             return_number_list.append(rn)
             number_of_returns_list.append(nr)
-        else:
-            have_return_info = False
 
     if not positions_list:
         return None
@@ -180,6 +188,7 @@ def export_las_file(
     filepath,
     *,
     apply_transforms,
+    overrides=None,
 ):
     """Write a LAS or LAZ file from one or more PointCloud objects.
 
@@ -189,11 +198,15 @@ def export_las_file(
     Format is inferred from the extension: `.las` writes uncompressed, `.laz`
     compresses via the bundled lazrs codec.
 
+    `overrides` maps attribute roles ('color', 'intensity', 'classification',
+    'return_number', 'number_of_returns') to a source attribute name, or to
+    the AUTO / NONE sentinels; see `_attrs`.
+
     Returns the total number of points written.
     """
     import laspy
 
-    data = _gather_export_data(objects, apply_transforms)
+    data = _gather_export_data(objects, apply_transforms, overrides or {})
     if data is None:
         raise RuntimeError("No PointCloud objects to export.")
 

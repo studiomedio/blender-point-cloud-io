@@ -5,6 +5,7 @@ import numpy as np
 from bpy.props import FloatProperty
 from bpy.types import Operator, Panel
 
+from ..formats._attrs import payload_names
 from ..formats._common import suggest_radius as _common_suggest_radius
 
 
@@ -101,9 +102,14 @@ class POINTCLOUD_PT_io_panel(Panel):
         count = len(attrs['position'].data) if 'position' in attrs else 0
         info.label(text=f"Points: {count:,}")
 
-        present = [name for name in ('color', 'normal', 'intensity') if name in attrs]
+        # Every payload attribute, not a fixed shortlist — these are the names
+        # the export dialogs match against, so seeing them here is what makes
+        # a mismatch obvious before the export rather than after it.
+        present = payload_names(attrs)
         if present:
-            info.label(text="Attributes: " + ", ".join(present))
+            info.label(text="Attributes:")
+            for name in present:
+                info.label(text=f"    {name}")
 
         layout.separator()
 

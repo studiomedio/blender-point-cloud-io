@@ -3,9 +3,10 @@ from bpy.props import BoolProperty, StringProperty
 from bpy_extras.io_utils import ExportHelper
 
 from ..formats.e57 import export_e57_file
+from ._base import PointCloudExportBase, role_property
 
 
-class EXPORT_OT_e57(bpy.types.Operator, ExportHelper):
+class EXPORT_OT_e57(PointCloudExportBase, bpy.types.Operator, ExportHelper):
     """Export PointCloud objects as an E57 file"""
 
     bl_idname = "export_scene.point_cloud_e57"
@@ -14,6 +15,14 @@ class EXPORT_OT_e57(bpy.types.Operator, ExportHelper):
 
     filename_ext = ".e57"
     filter_glob: StringProperty(default="*.e57", options={'HIDDEN'}, maxlen=255)
+
+    attribute_roles = ('color', 'intensity')
+    # pye57's writer exposes no normals field; the dialog says so in place,
+    # so a normal attribute is not also flagged as an unexpected drop.
+    consumed_roles = ('normal',)
+
+    color_attribute: role_property('color')
+    intensity_attribute: role_property('intensity')
 
     selection_only: BoolProperty(
         name="Selection Only",
@@ -32,14 +41,22 @@ class EXPORT_OT_e57(bpy.types.Operator, ExportHelper):
     )
     export_colors: BoolProperty(
         name="Colors",
-        description="Export RGB if the 'color' attribute is present",
+        description="Export RGB if a color attribute is present",
         default=True,
     )
     export_intensity: BoolProperty(
         name="Intensity",
-        description="Export the 'intensity' attribute if present",
+        description="Export intensity if the attribute is present",
         default=True,
     )
+
+    def enabled_roles(self):
+        return tuple(
+            role for role, on in (
+                ('color', self.export_colors),
+                ('intensity', self.export_intensity),
+            ) if on
+        )
 
     def draw(self, context):
         layout = self.layout
@@ -50,6 +67,8 @@ class EXPORT_OT_e57(bpy.types.Operator, ExportHelper):
         col.prop(self, "export_colors")
         col.prop(self, "export_intensity")
 
+        self.draw_attribute_roles(layout, context)
+
         col = layout.column(heading="Geometry")
         col.prop(self, "apply_modifiers")
         col.prop(self, "apply_transforms")
@@ -57,37 +76,12 @@ class EXPORT_OT_e57(bpy.types.Operator, ExportHelper):
         col = layout.column()
         col.prop(self, "selection_only")
 
-        skipped = self._skipped_names(context)
-        if skipped:
-            box = layout.box()
-            box.label(
-                text=f"{len(skipped)} non-PointCloud object(s) will be skipped:",
-                icon='ERROR',
-            )
-            for name in skipped[:5]:
-                box.label(text=f"  • {name}")
-            if len(skipped) > 5:
-                box.label(text=f"  ...and {len(skipped) - 5} more")
+        self.draw_skipped_objects(layout, context)
 
         layout.label(
             text="Normals are not written (pye57 limitation).",
             icon='INFO',
         )
-
-    def _candidates(self, context):
-        if self.selection_only:
-            return list(context.selected_objects)
-        return list(context.scene.objects)
-
-    def _skipped_names(self, context):
-        return [o.name for o in self._candidates(context) if o.type != 'POINTCLOUD']
-
-    def _resolve_objects(self, context):
-        candidates = [o for o in self._candidates(context) if o.type == 'POINTCLOUD']
-        if not self.apply_modifiers:
-            return candidates
-        depsgraph = context.evaluated_depsgraph_get()
-        return [o.evaluated_get(depsgraph) for o in candidates]
 
     def execute(self, context):
         objects = self._resolve_objects(context)
@@ -95,6 +89,7 @@ class EXPORT_OT_e57(bpy.types.Operator, ExportHelper):
             self.report({'WARNING'}, "No PointCloud objects to export.")
             return {'CANCELLED'}
 
+        plan = self.export_plan(objects)
         try:
             total = export_e57_file(
                 objects,
@@ -102,6 +97,7 @@ class EXPORT_OT_e57(bpy.types.Operator, ExportHelper):
                 export_colors=self.export_colors,
                 export_intensity=self.export_intensity,
                 apply_transforms=self.apply_transforms,
+                overrides=self.attribute_overrides(),
             )
         except Exception as err:
             self.report({'ERROR'}, f"E57 export failed: {err}")
@@ -111,6 +107,7 @@ class EXPORT_OT_e57(bpy.types.Operator, ExportHelper):
             {'INFO'},
             f"Exported {len(objects)} scan(s), {total:,} points.",
         )
+        self.report_unwritten(plan, "E57")
         return {'FINISHED'}
 
 

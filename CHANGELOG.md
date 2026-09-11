@@ -3,11 +3,23 @@
 All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.0] – 2026-09-10
 
 ### Added
 
+- **Pick the source attribute for each export channel.** Every export dialog gains a **Source Attributes** section with a dropdown per channel the format carries — Color and Intensity everywhere they apply, plus Classification, Return Number and Number of Returns for LAS. Each is **Auto** by default, can be set to **None** to leave the channel out, or pointed at any attribute of a compatible type, including attributes created by Geometry Nodes. Previously the exporters only looked for the exact names `color`, `normal`, `intensity`, `classification`, `return_number` and `number_of_returns`, so a cloud that had not come through this add-on's importers exported without that data.
+- **Wider auto-detection.** Names are matched with case and punctuation ignored, so CloudCompare's `scalar_Intensity`, `Scalar Intensity` and `intensity` all resolve to the same channel. Common aliases from other tools are recognised too — `Col` / `rgb` / `diffuse_color` for color, `reflectance` / `amplitude` for intensity, and so on. The full table is in the README.
+- **Export warnings for data left behind.** The export dialog now lists attributes the file will not carry before you click Export, and the same list is reported afterwards instead of the export finishing silently. Deliberate omissions — a channel set to **None**, or a column checkbox switched off — are not reported.
 - **Zenodo DOI** — releases are now archived on Zenodo and the project has a citation DOI ([10.5281/zenodo.20488833](https://doi.org/10.5281/zenodo.20488833)). A DOI badge linking to the concept DOI is shown at the top of the README.
+
+### Fixed
+
+- **PLY no longer drops attributes it cannot name.** The writer passed through `FLOAT`, `INT` and `BOOLEAN` attributes but silently skipped every other type, so a `FLOAT_COLOR` named `Col` or a `FLOAT_VECTOR` named `Nx` vanished from the output. Unclaimed vector and color attributes are now written as `<name>_x/_y/_z` and `<name>_r/_g/_b` component columns.
+- **Scalar channels accept non-float attributes.** Reading an `INT` or `BOOLEAN` attribute as intensity used to fill a float buffer through `foreach_get` and fail; the value is now converted. Color channels likewise accept 3-component `FLOAT_VECTOR` and `BYTE_COLOR` attributes, not just `FLOAT_COLOR`.
+
+### Changed
+
+- **Export operators share a common base.** Selection filtering, modifier evaluation and the skipped-object list were duplicated across all six exporters; they now live in `operators/_base.py`, alongside the attribute-role dropdowns and reporting. Attribute naming and detection live in `formats/_attrs.py`.
 
 ## [0.5.2] – 2026-08-04
 

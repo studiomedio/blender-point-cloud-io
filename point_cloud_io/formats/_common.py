@@ -145,11 +145,13 @@ def get_positions(obj, count, apply_transforms):
     return positions
 
 
-def get_normals(obj, count, apply_transforms):
-    if 'normal' not in obj.data.attributes:
+def get_normals(obj, count, apply_transforms, name='normal'):
+    """Read a FLOAT_VECTOR attribute as normals, optionally world-transformed."""
+    attr = obj.data.attributes.get(name) if name else None
+    if attr is None or attr.data_type != 'FLOAT_VECTOR':
         return None
     arr = np.empty(count * 3, dtype=np.float32)
-    obj.data.attributes['normal'].data.foreach_get('vector', arr)
+    attr.data.foreach_get('vector', arr)
     normals = arr.reshape(-1, 3).astype(np.float64)
     if apply_transforms:
         norm_mat = np.array(
@@ -162,21 +164,66 @@ def get_normals(obj, count, apply_transforms):
     return normals
 
 
-def get_colors_uint8(obj, count):
-    if 'color' not in obj.data.attributes:
+def get_colors_uint8(obj, count, name='color'):
+    """Read a color attribute as (N, 3) uint8 RGB.
+
+    Accepts FLOAT_COLOR / BYTE_COLOR (4 components) and FLOAT_VECTOR, so a
+    plain 3-component vector attribute can be mapped to color from the export
+    dialog. Returns None when the attribute is missing or an unusable type.
+    """
+    attr = obj.data.attributes.get(name) if name else None
+    if attr is None:
         return None
-    arr = np.empty(count * 4, dtype=np.float32)
-    obj.data.attributes['color'].data.foreach_get('color', arr)
-    colors = arr.reshape(-1, 4)
-    return np.clip(colors[:, :3] * 255.0, 0.0, 255.0).astype(np.uint8)
+
+    if attr.data_type in ('FLOAT_COLOR', 'BYTE_COLOR'):
+        arr = np.empty(count * 4, dtype=np.float32)
+        attr.data.foreach_get('color', arr)
+        colors = arr.reshape(-1, 4)[:, :3]
+    elif attr.data_type == 'FLOAT_VECTOR':
+        arr = np.empty(count * 3, dtype=np.float32)
+        attr.data.foreach_get('vector', arr)
+        colors = arr.reshape(-1, 3)
+    else:
+        return None
+
+    return np.clip(colors * 255.0, 0.0, 255.0).astype(np.uint8)
+
+
+def _read_scalar(obj, count, name):
+    """Read any scalar-typed attribute into a numpy array of its native kind."""
+    attr = obj.data.attributes.get(name) if name else None
+    if attr is None:
+        return None
+
+    if attr.data_type == 'FLOAT':
+        out = np.empty(count, dtype=np.float32)
+        attr.data.foreach_get('value', out)
+    elif attr.data_type in ('INT', 'INT8'):
+        out = np.empty(count, dtype=np.int32)
+        attr.data.foreach_get('value', out)
+    elif attr.data_type == 'BOOLEAN':
+        out = np.empty(count, dtype=np.bool_)
+        attr.data.foreach_get('value', out)
+    else:
+        return None
+    return out
 
 
 def get_scalar(obj, count, name):
-    if name not in obj.data.attributes:
-        return None
-    arr = np.empty(count, dtype=np.float32)
-    obj.data.attributes[name].data.foreach_get('value', arr)
-    return arr
+    """Read a scalar attribute as float32, converting INT / BOOLEAN sources.
+
+    Callers map arbitrary user-named attributes onto channels like intensity,
+    so the source is not necessarily FLOAT — an INT attribute has to convert
+    rather than blow up on a mismatched foreach_get buffer.
+    """
+    out = _read_scalar(obj, count, name)
+    return None if out is None else out.astype(np.float32)
+
+
+def get_int_scalar(obj, count, name):
+    """Read a scalar attribute as int32, truncating FLOAT sources."""
+    out = _read_scalar(obj, count, name)
+    return None if out is None else out.astype(np.int32)
 
 
 _DEFAULT_RADIUS = 0.005

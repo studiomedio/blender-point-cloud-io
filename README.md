@@ -81,6 +81,8 @@ Use this path if you want to try unreleased changes or work on the extension loc
 
 ## Usage
 
+Every export dialog can be told which point attribute feeds each channel it writes, and warns about anything it leaves out — see [Choosing which attributes get exported](#choosing-which-attributes-get-exported).
+
 ### Importing E57
 
 `File > Import > E57 Point Cloud (.e57)`
@@ -126,7 +128,7 @@ Reads positions (`x y z`), colors (`red green blue [alpha]`, auto-detects 0–25
 
 `File > Export > PLY Point Cloud (.ply)`
 
-Writes positions, normals, colors (as RGB uint8), and any extra `FLOAT` / `INT` / `BOOLEAN` POINT-domain attributes. Binary little-endian by default; tick **ASCII** for a human-readable file.
+Writes positions, normals, colors (as RGB uint8), and every other POINT-domain attribute. `FLOAT` / `INT` / `BOOLEAN` attributes keep their own name; vector and color attributes that no channel claimed are split into `<name>_x/_y/_z` and `<name>_r/_g/_b` columns rather than being dropped. Binary little-endian by default; tick **ASCII** for a human-readable file.
 
 ### Importing LAS / LAZ
 
@@ -191,6 +193,63 @@ Leica Cyclone text format — basically XYZ with a single integer count line at 
 
 Writes the count header followed by `x y z [intensity] [r g b]` rows. Intensity is scaled back to the 0–2047 Leica integer range; RGB is written as uint8 0–255. Tick the **Write Intensity** / **Write Colors** boxes to control which columns appear.
 
+### Choosing which attributes get exported
+
+Every exporter maps Blender point attributes onto the channels its format
+carries — color, intensity, and for LAS also classification and return
+numbers. Clouds imported by this add-on already use the names the exporters
+look for, but clouds built in Geometry Nodes or imported by other tools often
+do not, and an unrecognised attribute used to be dropped without a word.
+
+Each export dialog now has a **Source Attributes** section with one dropdown
+per channel:
+
+| Setting | Meaning |
+|---------|---------|
+| **Auto** (default) | Match by name — the canonical name first, then common aliases |
+| **None** | Leave this channel out of the file |
+| *an attribute name* | Use exactly that attribute, whatever it is called |
+
+The dropdown lists only attributes whose data type actually fits the channel,
+including any created by Geometry Nodes when **Apply Modifiers** is on.
+
+**Recognised names.** Auto-detection compares names with case and punctuation
+ignored, so `scalar_Intensity`, `Scalar Intensity` and `intensity` all match.
+
+| Channel | Canonical name | Also recognised |
+|---------|----------------|-----------------|
+| Color | `color` | `colors`, `col`, `rgb`, `rgba`, `vertex_color`, `diffuse_color`, `base_color` |
+| Normal | `normal` | `normals`, `n`, `nrm`, `vertex_normal` |
+| Intensity | `intensity` | `i`, `scalar_Intensity`, `reflectance`, `amplitude` |
+| Classification | `classification` | `class`, `scalar_Classification`, `category`, `label` |
+| Return Number | `return_number` | `return_num`, `ret_num`, `return_index` |
+| Number of Returns | `number_of_returns` | `num_returns`, `n_returns`, `return_count` |
+
+Color accepts `FLOAT_COLOR`, `BYTE_COLOR` and 3-component `FLOAT_VECTOR`
+attributes; normals accept `FLOAT_VECTOR`; the scalar channels accept `FLOAT`,
+`INT`, `INT8` and `BOOLEAN`, converting as needed.
+
+**Warnings.** The export dialog lists anything that will not make it into the
+file before you click Export, and the same list is reported afterwards:
+
+```
+Some attributes were left out: XYZ did not write scalar_Deviation, gps_time.
+Recognised names: 'intensity', 'color', 'normal' — or pick a source above.
+```
+
+An attribute is reported when the target format has no column for it — LAS
+carries classification, XYZ does not — or when its name matched no channel.
+Setting a channel to **None** is a deliberate choice and is never reported.
+
+PLY is the exception: it writes every point attribute through under its own
+name, splitting vectors and colors into `<name>_x/_y/_z` and
+`<name>_r/_g/_b` components, so a PLY export normally drops nothing.
+
+> **Intensity ranges.** The exporters assume intensity is normalised to 0–1,
+> which is what the importers produce. LAS scales 0–1 up to 16-bit and passes
+> larger values through unchanged; PTS clamps to the 0–2047 Leica range. If
+> you map a channel holding raw 16-bit counts, check the output range.
+
 ### Sidebar panel
 
 After importing, press **N** in the 3D Viewport → **Point Cloud** tab. The panel shows point count and present attributes, plus a radius control with a logarithmic slider and `÷10 / ÷2 / Auto / ×2 / ×10` buttons for quick magnitude changes.
@@ -205,6 +264,7 @@ point_cloud_io/
 ├── blender_manifest.toml    # Blender extension manifest
 ├── operators/
 │   ├── __init__.py          # operator registration + menu wiring
+│   ├── _base.py             # shared export operator base (roles, warnings)
 │   ├── import_e57.py        # File > Import > E57 operator
 │   ├── export_e57.py        # File > Export > E57 operator
 │   ├── import_ply.py        # File > Import > PLY operator
@@ -219,6 +279,7 @@ point_cloud_io/
 │   └── export_pts.py        # File > Export > PTS operator
 ├── formats/
 │   ├── __init__.py
+│   ├── _attrs.py            # attribute roles, name aliases, export planning
 │   ├── _common.py           # shared PointCloud build / read helpers
 │   ├── e57.py               # E57 read + write logic
 │   ├── ply.py               # PLY read + write logic
